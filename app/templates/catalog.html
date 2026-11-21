@@ -1,0 +1,245 @@
+
+{% extends "base.html" %}
+
+{% block title %}Brands & Processes | RosterFlow{% endblock %}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">BUSINESS CONFIGURATION</p>
+        <h1>Brands & Processes</h1>
+        <p>Manage client brands and their operational processes.</p>
+    </div>
+</section>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+
+<!-- BRAND MANAGEMENT -->
+
+<section class="panel" id="brands">
+
+    <div class="panel-heading">
+        <div>
+            <h2>Brand Management</h2>
+            <p>Create and manage client brands.</p>
+        </div>
+        <span class="catalog-count">{{ brands|length }} Brands</span>
+    </div>
+
+    <form method="POST"
+          action="{{ url_for('catalog.add_brand') }}"
+          class="catalog-form">
+
+        <div class="form-group">
+            <label>Brand Name *</label>
+            <input name="name" placeholder="Example: Nike" required>
+        </div>
+
+        <div class="form-group">
+            <label>Description</label>
+            <input name="description"
+                   placeholder="Brand description">
+        </div>
+
+        <button class="btn-primary" type="submit">
+            + Add Brand
+        </button>
+    </form>
+
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Brand Name</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for brand in brands %}
+                <tr>
+                    <td><strong>{{ brand.name }}</strong></td>
+
+                    <td>{{ brand.description or 'No description' }}</td>
+
+                    <td>
+                        <span class="status-badge {{ 'active' if brand.active else 'inactive' }}">
+                            {{ 'Active' if brand.active else 'Inactive' }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <details class="edit-details">
+                            <summary>Edit</summary>
+
+                            <form method="POST"
+                                  action="{{ url_for('catalog.edit_brand', brand_id=brand.id) }}"
+                                  class="edit-form">
+
+                                <label>Brand Name</label>
+                                <input name="name"
+                                       value="{{ brand.name }}" required>
+
+                                <label>Description</label>
+                                <input name="description"
+                                       value="{{ brand.description or '' }}">
+
+                                <button class="btn-primary" type="submit">
+                                    Save Changes
+                                </button>
+                            </form>
+                        </details>
+
+                        <form method="POST"
+                              action="{{ url_for('catalog.toggle_brand', brand_id=brand.id) }}"
+                              class="inline-form">
+
+                            <button class="btn-secondary" type="submit">
+                                {{ 'Deactivate' if brand.active else 'Activate' }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+
+                {% else %}
+                <tr>
+                    <td colspan="4" class="empty-state">
+                        No brands added yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</section>
+
+
+<!-- PROCESS MANAGEMENT -->
+
+<section class="panel" id="processes">
+
+    <div class="panel-heading">
+        <div>
+            <h2>Process Management</h2>
+            <p>Configure operational processes such as CS, ACC and NDR.</p>
+        </div>
+        <span class="catalog-count">{{ processes|length }} Processes</span>
+    </div>
+
+    <form method="POST"
+          action="{{ url_for('catalog.add_process') }}"
+          class="catalog-form">
+
+        <div class="form-group">
+            <label>Process Code *</label>
+            <input name="code" placeholder="CS" required>
+        </div>
+
+        <div class="form-group">
+            <label>Process Name *</label>
+            <input name="name"
+                   placeholder="Customer Support" required>
+        </div>
+
+        <div class="form-group">
+            <label>Description</label>
+            <input name="description"
+                   placeholder="Process description">
+        </div>
+
+        <button class="btn-primary" type="submit">
+            + Add Process
+        </button>
+    </form>
+
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Process Name</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for process in processes %}
+                <tr>
+                    <td><strong>{{ process.code }}</strong></td>
+
+                    <td>{{ process.name }}</td>
+
+                    <td>{{ process.description or 'No description' }}</td>
+
+                    <td>
+                        <span class="status-badge {{ 'active' if process.active else 'inactive' }}">
+                            {{ 'Active' if process.active else 'Inactive' }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <details class="edit-details">
+                            <summary>Edit</summary>
+
+                            <form method="POST"
+                                  action="{{ url_for('catalog.edit_process', process_id=process.id) }}"
+                                  class="edit-form">
+
+                                <label>Process Code</label>
+                                <input name="code"
+                                       value="{{ process.code }}" required>
+
+                                <label>Process Name</label>
+                                <input name="name"
+                                       value="{{ process.name }}" required>
+
+                                <label>Description</label>
+                                <input name="description"
+                                       value="{{ process.description or '' }}">
+
+                                <button class="btn-primary" type="submit">
+                                    Save Changes
+                                </button>
+                            </form>
+                        </details>
+
+                        <form method="POST"
+                              action="{{ url_for('catalog.toggle_process', process_id=process.id) }}"
+                              class="inline-form">
+
+                            <button class="btn-secondary" type="submit">
+                                {{ 'Deactivate' if process.active else 'Activate' }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+
+                {% else %}
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        No processes added yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</section>
+
+{% endblock %}

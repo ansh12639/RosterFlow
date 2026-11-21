@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Pods & Assignments | RosterFlow{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">WORKFORCE STRUCTURE</p>
+        <h1>Pods & Assignments</h1>
+        <p>Organize employees into pods and allocate brand-process responsibilities.</p>
+    </div>
+</section>
+
+
+
+<section class="stats-grid">
+    <div class="stat-card">
+        <span>Total Pods</span>
+        <strong>{{ pods|length }}</strong>
+    </div>
+    <div class="stat-card">
+        <span>Active Employees</span>
+        <strong>{{ employees|selectattr("active")|list|length }}</strong>
+    </div>
+    <div class="stat-card">
+        <span>Brand Assignments</span>
+        <strong>{{ assignments|selectattr("active")|list|length }}</strong>
+    </div>
+</section>
+
+<!-- POD MANAGEMENT -->
+<section class="content-card pod-section" id="pods">
+    <div class="section-heading">
+        <div>
+            <h2>Pod Management</h2>
+            <p>Create pods and manage their employees and leads.</p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('pods.add_pod') }}" class="catalog-form">
+        <div class="form-group">
+            <label for="pod-name">Pod Name</label>
+            <input id="pod-name" type="text" name="name"
+                   placeholder="Example: Pod Alpha" required>
+        </div>
+        <button type="submit" class="btn-primary">Create Pod</button>
+    </form>
+
+    {% if pods %}
+        <div class="pod-grid">
+            {% for pod in pods %}
+                <article class="pod-card">
+                    <div class="pod-card-heading">
+                        <div>
+                            <h3>{{ pod.name }}</h3>
+                            <span class="muted-text">
+                                {{ pod.employees|length }} employee(s)
+                            </span>
+                        </div>
+                        <span class="catalog-count">Pod #{{ pod.id }}</span>
+                    </div>
+
+                    <details class="edit-details">
+                        <summary>Edit pod name</summary>
+                        <form method="POST"
+                              action="{{ url_for('pods.edit_pod', pod_id=pod.id) }}"
+                              class="edit-form">
+                            <input type="text" name="name"
+                                   value="{{ pod.name }}" required>
+                            <button type="submit" class="btn-secondary">Save</button>
+                        </form>
+                    </details>
+
+                    <div class="pod-lead">
+                        <strong>Pod Lead</strong>
+                        {% if pod.lead_employee %}
+                            <span>{{ pod.lead_employee.full_name }}</span>
+                        {% else %}
+                            <span class="muted-text">Not assigned</span>
+                        {% endif %}
+                    </div>
+
+                    <form method="POST"
+                          action="{{ url_for('pods.assign_employee_to_pod', pod_id=pod.id) }}"
+                          class="inline-form">
+                        <select name="employee_id" required>
+                            <option value="">Select employee to add</option>
+                            {% for employee in employees %}
+                                {% if employee.active and employee.pod_id != pod.id %}
+                                    <option value="{{ employee.id }}">
+                                        {{ employee.full_name }} ({{ employee.employee_code }})
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn-primary">Add</button>
+                    </form>
+
+                    <div class="pod-members">
+                        <strong>Pod Members</strong>
+
+                        {% for employee in pod.employees %}
+                            <div class="member-row">
+                                <div>
+                                    <span>{{ employee.full_name }}</span>
+                                    <small>{{ employee.employee_code }}</small>
+                                </div>
+
+                                <div class="member-actions">
+                                    <form method="POST"
+                                          action="{{ url_for('pods.set_pod_lead', pod_id=pod.id) }}">
+                                        <input type="hidden" name="employee_id"
+                                               value="{{ employee.id }}">
+                                        <button type="submit" class="text-button">
+                                            Make Lead
+                                        </button>
+                                    </form>
+
+                                    <form method="POST"
+                                          action="{{ url_for('pods.remove_employee_from_pod', pod_id=pod.id) }}"
+                                          onsubmit="return confirm('Remove this employee from the pod?');">
+                                        <input type="hidden" name="employee_id"
+                                               value="{{ employee.id }}">
+                                        <button type="submit" class="text-button danger-text">
+                                            Remove
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="empty-state">No employees assigned yet.</p>
+                        {% endfor %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-state">No pods created yet. Create your first pod above.</p>
+    {% endif %}
+</section>
+
+<!-- EMPLOYEE ASSIGNMENTS -->
+    <section class="content-card assignment-section" id="assignments">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+
+    <div class="section-heading">
+        <div>
+            <h2>Employee Brand & Process Assignments</h2>
+            <p>Assign employees to brands and processes with effective dates.</p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('pods.add_assignment') }}"
+          class="assignment-form">
+
+        <div class="form-group">
+            <label>Employee</label>
+            <select name="employee_id" required>
+                <option value="">Select employee</option>
+                {% for employee in employees %}
+                    {% if employee.active %}
+                        <option value="{{ employee.id }}">
+                            {{ employee.full_name }} ({{ employee.employee_code }})
+                        </option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Brand</label>
+            <select name="brand_id" required>
+                <option value="">Select brand</option>
+                {% for brand in brands %}
+                    <option value="{{ brand.id }}">{{ brand.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Process</label>
+            <select name="process_id" required>
+                <option value="">Select process</option>
+                {% for process in processes %}
+                    <option value="{{ process.id }}">
+                        {{ process.code }} - {{ process.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Effective From</label>
+            <input type="date" name="effective_from" required>
+        </div>
+
+        <div class="form-group">
+            <label>Effective To (Optional)</label>
+            <input type="date" name="effective_to">
+        </div>
+
+        <div class="form-group">
+            <label>Priority</label>
+            <input type="number" name="priority" min="1" value="1" required>
+        </div>
+
+        <button type="submit" class="btn-primary">Create Assignment</button>
+    </form>
+
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Brand</th>
+                    <th>Process</th>
+                    <th>Effective From</th>
+                    <th>Effective To</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for assignment in assignments %}
+                    <tr>
+                        <td>{{ assignment.employee.full_name }}</td>
+                        <td>{{ assignment.brand.name }}</td>
+                        <td>{{ assignment.process.name }}</td>
+                        <td>{{ assignment.effective_from }}</td>
+                        <td>{{ assignment.effective_to or "Open-ended" }}</td>
+                        <td>{{ assignment.priority }}</td>
+                        <td>
+                            <span class="status-pill {{ 'active' if assignment.active else 'inactive' }}">
+                                {{ "Active" if assignment.active else "Inactive" }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if assignment.active %}
+                                <form method="POST"
+                                      action="{{ url_for('pods.close_assignment', assignment_id=assignment.id) }}"
+                                      onsubmit="return confirm('Deactivate this assignment?');">
+                                    <button type="submit" class="text-button danger-text">
+                                        Deactivate
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="muted-text">Closed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            No employee assignments created yet.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}RosterFlow{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand-mark">RF <span>RosterFlow</span></div>
+    <nav>
+      <a class="active" href="/">Overview</a>
+      <a href="{{ url_for('employees.index') }}">Employees</a>
+      <a href="{{ url_for('catalog.index') }}">Brands & Processes</a>
+      <a href="{{ url_for('pods.index') }}">Pods</a>
+      <a href="{{ url_for('working_rules.index') }}">Working Rules</a>
+      <a href="{{ url_for('availability.index') }}">Availability</a>
+      <a href="{{ url_for('weekly_offs.index') }}">Weekly Offs</a>
+      <a href="{{ url_for('holidays.index') }}">Public Holidays</a>
+      <a href="{{ url_for('rosters.index') }}">Roster Management</a>
+      <a href="#conflicts">Conflicts</a>
+      <a href="#reports">Reports</a>
+    </nav>
+    <div class="sidebar-foot">Workforce operations</div>
+  </aside>
+  <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    <header class="topbar"><div><p class="eyebrow">WORKFORCE OPERATIONS</p><strong>Roster management</strong></div><div class="avatar">AD</div></header>
+    {% block content %}{% endblock %}
+  </main>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

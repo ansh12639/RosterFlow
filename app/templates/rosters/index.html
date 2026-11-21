@@ -1,0 +1,119 @@
+
+{% extends "base.html" %}
+
+{% block title %}Roster Management | RosterFlow{% endblock %}
+
+{% block content %}
+
+<section class="page-header">
+    <div>
+        <p class="eyebrow">WORKFORCE PLANNING</p>
+        <h1>Roster Management</h1>
+        <p>Generate monthly employee schedules and manage roster versions.</p>
+    </div>
+</section>
+
+<section class="panel">
+    <h2>Generate Monthly Roster</h2>
+    <p>Select a month and year to generate a new roster version.</p>
+
+    <form method="POST" action="{{ url_for('rosters.generate') }}"
+          class="form-grid">
+
+        <div class="form-group">
+            <label for="month">Month</label>
+            <select name="month" id="month" required>
+                {% for number, name in [
+                    (1, 'January'), (2, 'February'),
+                    (3, 'March'), (4, 'April'),
+                    (5, 'May'), (6, 'June'),
+                    (7, 'July'), (8, 'August'),
+                    (9, 'September'), (10, 'October'),
+                    (11, 'November'), (12, 'December')
+                ] %}
+                    <option value="{{ number }}"
+                        {% if number == current_month %}selected{% endif %}>
+                        {{ name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="year">Year</label>
+            <input
+                type="number"
+                id="year"
+                name="year"
+                value="{{ current_year }}"
+                min="2020"
+                max="2100"
+                required
+            >
+        </div>
+
+        <div class="form-group form-action">
+            <button type="submit" class="btn-primary">
+                Generate Roster
+            </button>
+        </div>
+    </form>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <div>
+            <h2>Saved Roster Versions</h2>
+            <p>Previously generated monthly rosters.</p>
+        </div>
+        <span class="count-badge">{{ versions|length }} Versions</span>
+    </div>
+
+    {% if versions %}
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Version ID</th>
+                        <th>Roster Month</th>
+                        <th>Version</th>
+                        <th>Status</th>
+                        <th>Generated At</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for version in versions %}
+                    <tr>
+                        <td>#{{ version.id }}</td>
+                        <td>{{ version.roster_month.strftime('%B %Y') }}</td>
+                        <td>V{{ version.version_number }}</td>
+                        <td>
+                            <span class="status-badge {{ version.status|lower }}">
+                                {{ version.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {{ version.generated_at.strftime('%d %b %Y %H:%M') }}
+                        </td>
+                        <td>
+                            <a class="btn-secondary"
+                               href="{{ url_for('rosters.detail', version_id=version.id) }}">
+                                View Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <h3>No roster versions yet</h3>
+            <p>Generate your first monthly roster to get started.</p>
+        </div>
+    {% endif %}
+</section>
+
+{% endblock %}

@@ -1,0 +1,215 @@
+
+{% extends "base.html" %}
+
+{% block title %}Employees | RosterFlow{% endblock %}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">TEAM MANAGEMENT</p>
+        <h1>Employees</h1>
+        <p>Manage your workforce and pod assignments.</p>
+    </div>
+</section>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<section class="stats-grid">
+    <div class="stat-card">
+        <span>Total Employees</span>
+        <h2>{{ employees|length }}</h2>
+    </div>
+    <div class="stat-card">
+        <span>Active Employees</span>
+        <h2>{{ employees|selectattr('active')|list|length }}</h2>
+    </div>
+    <div class="stat-card">
+        <span>Inactive Employees</span>
+        <h2>{{ employees|rejectattr('active')|list|length }}</h2>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-heading">
+        <div>
+            <h2>Add New Employee</h2>
+            <p>Enter employee details below.</p>
+        </div>
+    </div>
+
+    <form action="{{ url_for('employees.add') }}" method="POST"
+          class="employee-form">
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Employee Code *</label>
+                <input name="employee_code" placeholder="EMP001" required>
+            </div>
+
+            <div class="form-group">
+                <label>Full Name *</label>
+                <input name="full_name" placeholder="Employee name" required>
+            </div>
+
+            <div class="form-group">
+                <label>Email *</label>
+                <input type="email" name="email"
+                       placeholder="employee@company.com" required>
+            </div>
+
+            <div class="form-group">
+                <label>Phone</label>
+                <input name="phone" placeholder="Phone number">
+            </div>
+
+            <div class="form-group">
+                <label>Pod</label>
+                <select name="pod_id">
+                    <option value="">Unassigned</option>
+                    {% for pod in pods %}
+                        <option value="{{ pod.id }}">{{ pod.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-primary">
+            + Add Employee
+        </button>
+    </form>
+</section>
+
+<section class="panel">
+    <div class="panel-heading">
+        <div>
+            <h2>Employee Directory</h2>
+            <p>View, search and update employee records.</p>
+        </div>
+    </div>
+
+    <form method="GET" action="{{ url_for('employees.index') }}"
+          class="filter-form">
+
+        <input name="search" value="{{ search }}"
+               placeholder="Search name, code or email...">
+
+        <select name="status">
+            <option value="all" {% if status == 'all' %}selected{% endif %}>
+                All employees
+            </option>
+            <option value="active" {% if status == 'active' %}selected{% endif %}>
+                Active
+            </option>
+            <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>
+                Inactive
+            </option>
+        </select>
+
+        <button type="submit" class="btn-secondary">Filter</button>
+    </form>
+
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Code</th>
+                    <th>Email</th>
+                    <th>Pod</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for employee in employees %}
+                <tr>
+                    <td>
+                        <strong>{{ employee.full_name }}</strong>
+                        <small>{{ employee.phone or 'No phone' }}</small>
+                    </td>
+
+                    <td>{{ employee.employee_code }}</td>
+                    <td>{{ employee.email }}</td>
+                    <td>{{ employee.pod.name if employee.pod else 'Unassigned' }}</td>
+
+                    <td>
+                        <span class="status-badge {{ 'active' if employee.active else 'inactive' }}">
+                            {{ 'Active' if employee.active else 'Inactive' }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <details class="edit-details">
+                            <summary>Edit</summary>
+
+                            <form method="POST"
+                                  action="{{ url_for('employees.edit', employee_id=employee.id) }}"
+                                  class="edit-form">
+
+                                <label>Employee Code</label>
+                                <input name="employee_code"
+                                       value="{{ employee.employee_code }}" required>
+
+                                <label>Full Name</label>
+                                <input name="full_name"
+                                       value="{{ employee.full_name }}" required>
+
+                                <label>Email</label>
+                                <input type="email" name="email"
+                                       value="{{ employee.email }}" required>
+
+                                <label>Phone</label>
+                                <input name="phone"
+                                       value="{{ employee.phone or '' }}">
+
+                                <label>Pod</label>
+                                <select name="pod_id">
+                                    <option value="">Unassigned</option>
+                                    {% for pod in pods %}
+                                        <option value="{{ pod.id }}"
+                                            {% if employee.pod_id == pod.id %}selected{% endif %}>
+                                            {{ pod.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+
+                                <button class="btn-primary" type="submit">
+                                    Save Changes
+                                </button>
+                            </form>
+                        </details>
+
+                        <form method="POST"
+                              action="{{ url_for('employees.toggle', employee_id=employee.id) }}"
+                              class="inline-form">
+
+                            <button class="btn-secondary" type="submit">
+                                {{ 'Deactivate' if employee.active else 'Activate' }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+
+                {% else %}
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        No employees found. Add your first employee above.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly Off Management | RosterFlow{% endblock %}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">WORKFORCE CONFIGURATION</p>
+        <h1>Weekly Off Management</h1>
+        <p>Configure recurring weekly holidays for employees.</p>
+    </div>
+</section>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+                <div class="flash-message {{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<section class="content-card">
+    <div class="section-heading">
+        <div>
+            <h2>Assign Weekly Off</h2>
+            <p>Select an employee, weekday and effective period.</p>
+        </div>
+    </div>
+
+    <form method="POST"
+          action="{{ url_for('weekly_offs.add_weekly_off') }}"
+          class="weekly-off-form">
+
+        <div class="form-group">
+            <label>Employee</label>
+            <select name="employee_id" required>
+                <option value="">Select employee</option>
+                {% for employee in employees %}
+                    <option value="{{ employee.id }}">
+                        {{ employee.full_name }} ({{ employee.employee_code }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Weekly Off Day</label>
+            <select name="weekday" required>
+                <option value="">Select weekday</option>
+                {% for number, day in weekdays.items() %}
+                    <option value="{{ number }}">{{ day }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Effective From</label>
+            <input type="date" name="effective_from" required>
+        </div>
+
+        <div class="form-group">
+            <label>Effective To (Optional)</label>
+            <input type="date" name="effective_to">
+        </div>
+
+        <button type="submit" class="btn-primary">
+            Assign Weekly Off
+        </button>
+    </form>
+</section>
+
+<section class="content-card weekly-off-list">
+    <div class="section-heading">
+        <div>
+            <h2>Employee Weekly-Off Schedules</h2>
+            <p>View recurring weekly-off configurations.</p>
+        </div>
+        <span class="catalog-count">{{ records|length }} Records</span>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Employee Code</th>
+                    <th>Weekly Off</th>
+                    <th>Effective From</th>
+                    <th>Effective To</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for record in records %}
+                    <tr>
+                        <td>{{ record.employee.full_name }}</td>
+                        <td>{{ record.employee.employee_code }}</td>
+                        <td>{{ weekdays[record.weekday] }}</td>
+                        <td>{{ record.effective_from }}</td>
+                        <td>{{ record.effective_to or "Open-ended" }}</td>
+
+                        <td>
+                            <span class="status-pill
+                                {{ 'active' if not record.effective_to or record.effective_to >= today else 'inactive' }}">
+                                {{ "Active" if not record.effective_to or record.effective_to >= today else "Closed" }}
+                            </span>
+                        </td>
+
+                        <td>
+                            {% if not record.effective_to or record.effective_to >= today %}
+                                <form method="POST"
+                                      action="{{ url_for('weekly_offs.close_weekly_off', record_id=record.id) }}"
+                                      class="close-weekly-form">
+
+                                    <input type="date"
+                                           name="effective_to"
+                                           min="{{ record.effective_from }}"
+                                           required>
+
+                                    <button type="submit" class="text-button danger-text">
+                                        Close
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="muted-text">Closed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            No weekly-off schedules configured yet.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock %}

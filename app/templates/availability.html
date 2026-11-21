@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Availability | RosterFlow{% endblock %}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">WORKFORCE CONFIGURATION</p>
+        <h1>Employee Availability</h1>
+        <p>Manage employee leave requests, comp-offs and unavailable dates.</p>
+    </div>
+</section>
+
+<section class="content-card">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="section-heading">
+        <div>
+            <h2>Submit Availability Request</h2>
+            <p>New requests are submitted with Pending approval status.</p>
+        </div>
+    </div>
+
+    <form method="POST"
+          action="{{ url_for('availability.add_availability') }}"
+          class="availability-form">
+
+        <div class="form-group">
+            <label>Employee</label>
+            <select name="employee_id" required>
+                <option value="">Select employee</option>
+                {% for employee in employees %}
+                    <option value="{{ employee.id }}">
+                        {{ employee.full_name }} ({{ employee.employee_code }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Availability Type</label>
+            <select name="availability_type" required>
+                <option value="">Select type</option>
+                <option value="PLANNED_LEAVE">Planned Leave</option>
+                <option value="COMP_OFF">Comp-Off</option>
+                <option value="UNAVAILABLE">Unavailable</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" name="start_date" required>
+        </div>
+
+        <div class="form-group">
+            <label>End Date</label>
+            <input type="date" name="end_date" required>
+        </div>
+
+        <div class="form-group full-width">
+            <label>Notes (Optional)</label>
+            <textarea name="notes"
+                      maxlength="255"
+                      placeholder="Enter reason or additional details"
+                      rows="3"></textarea>
+        </div>
+
+        <button type="submit" class="btn-primary">
+            Submit Request
+        </button>
+
+    </form>
+</section>
+
+<section class="content-card availability-list">
+    <div class="section-heading">
+        <div>
+            <h2>Availability Records</h2>
+            <p>Review requests and manage approval status.</p>
+        </div>
+        <span class="catalog-count">{{ records|length }} Records</span>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Type</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Notes</th>
+                    <th>Approval Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for record in records %}
+                    <tr>
+                        <td>{{ record.employee.full_name }}</td>
+                        <td>{{ record.availability_type.replace("_", " ") }}</td>
+                        <td>{{ record.start_date }}</td>
+                        <td>{{ record.end_date }}</td>
+                        <td>{{ record.notes or "-" }}</td>
+
+                        <td>
+                            <span class="status-pill
+                                {% if record.approval_status == 'APPROVED' %}
+                                    active
+                                {% elif record.approval_status == 'REJECTED' %}
+                                    inactive
+                                {% else %}
+                                    pending
+                                {% endif %}">
+                                {{ record.approval_status }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <form method="POST"
+                                  action="{{ url_for('availability.update_status', record_id=record.id) }}"
+                                  class="approval-form">
+
+                                <select name="approval_status" required>
+                                    <option value="PENDING"
+                                        {% if record.approval_status == 'PENDING' %}selected{% endif %}>
+                                        Pending
+                                    </option>
+
+                                    <option value="APPROVED"
+                                        {% if record.approval_status == 'APPROVED' %}selected{% endif %}>
+                                        Approved
+                                    </option>
+
+                                    <option value="REJECTED"
+                                        {% if record.approval_status == 'REJECTED' %}selected{% endif %}>
+                                        Rejected
+                                    </option>
+                                </select>
+
+                                <button type="submit" class="btn-secondary">
+                                    Update
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            No availability requests found.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock %}

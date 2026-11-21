@@ -1,0 +1,131 @@
+
+{% extends "base.html" %}
+
+{% block title %}Roster Details | RosterFlow{% endblock %}
+
+{% block content %}
+
+<section class="page-header">
+    <div>
+        <p class="eyebrow">ROSTER VERSION #{{ version.id }}</p>
+        <h1>{{ version.roster_month.strftime('%B %Y') }} Roster</h1>
+        <p>
+            Version {{ version.version_number }}
+            · {{ version.status }}
+        </p>
+    </div>
+
+    <a href="{{ url_for('rosters.index') }}" class="btn-secondary">
+        Back to Rosters
+    </a>
+</section>
+
+<section class="stats-grid">
+    <div class="stat-card">
+        <span>Total Assignments</span>
+        <h2>{{ entries|length }}</h2>
+    </div>
+
+    <div class="stat-card">
+        <span>Total Conflicts</span>
+        <h2>{{ conflicts|length }}</h2>
+    </div>
+
+    <div class="stat-card">
+        <span>Roster Version</span>
+        <h2>V{{ version.version_number }}</h2>
+    </div>
+</section>
+
+<section class="panel">
+    <h2>Roster Assignments</h2>
+    <p>Employee-wise process and shift allocation.</p>
+
+    {% if entries %}
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Employee</th>
+                    <th>Brand</th>
+                    <th>Process</th>
+                    <th>Shift Start</th>
+                    <th>Shift End</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for entry in entries %}
+                <tr>
+                    <td>{{ entry.roster_date.strftime('%d %b %Y') }}</td>
+                    <td>{{ entry.employee.full_name }}</td>
+                    <td>{{ entry.brand.name }}</td>
+                    <td>{{ entry.process.name }}</td>
+                    <td>
+                        {{ entry.shift_start.strftime('%H:%M') if entry.shift_start else '-' }}
+                    </td>
+                    <td>
+                        {{ entry.shift_end.strftime('%H:%M') if entry.shift_end else '-' }}
+                    </td>
+                    <td>{{ entry.status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p>No assignments found for this version.</p>
+    {% endif %}
+</section>
+
+<section class="panel">
+    <h2>Roster Conflicts</h2>
+    <p>Issues detected during automatic roster generation.</p>
+
+    {% if conflicts %}
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Brand</th>
+                    <th>Process</th>
+                    <th>Conflict Type</th>
+                    <th>Severity</th>
+                    <th>Required</th>
+                    <th>Available</th>
+                    <th>Message</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for conflict in conflicts %}
+                <tr>
+                    <td>{{ conflict.roster_date.strftime('%d %b %Y') }}</td>
+                    <td>{{ conflict.brand.name if conflict.brand else '-' }}</td>
+                    <td>{{ conflict.process.name if conflict.process else '-' }}</td>
+                    <td>{{ conflict.conflict_type }}</td>
+                    <td>
+                        <span class="status-badge {{ conflict.severity|lower }}">
+                            {{ conflict.severity }}
+                        </span>
+                    </td>
+                    <td>{{ conflict.required_staff if conflict.required_staff is not none else '-' }}</td>
+                    <td>{{ conflict.available_staff if conflict.available_staff is not none else '-' }}</td>
+                    <td>{{ conflict.message }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="empty-state">
+            <h3>No conflicts detected</h3>
+            <p>All required process coverage checks passed.</p>
+        </div>
+    {% endif %}
+</section>
+
+{% endblock %}

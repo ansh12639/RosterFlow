@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Overview | RosterFlow{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">OVERVIEW</p><h1>Operations dashboard</h1><p class="muted">Monitor workforce allocation and monthly roster health.</p></div><button class="button button-primary" disabled title="Available after roster module is implemented">Generate roster</button></section>
+<section class="stats-grid">
+  <article class="stat-card"><span class="stat-label">Total employees</span><strong>—</strong><small>Target dataset: 30+</small></article>
+  <article class="stat-card"><span class="stat-label">Active brands</span><strong>—</strong><small>Configured brands</small></article>
+  <article class="stat-card"><span class="stat-label">Operational pods</span><strong>—</strong><small>Teams and pod leads</small></article>
+  <article class="stat-card"><span class="stat-label">Coverage conflicts</span><strong>—</strong><small>Calculated during validation</small></article>
+</section>
+<section class="content-grid">
+  <article class="panel"><div class="panel-heading"><div><h2>Build status</h2><p class="muted">Implementation milestones</p></div><span class="status-pill">Phase 1</span></div>
+    <ol class="milestones"><li class="done">Project scaffold and configuration</li><li>Database schema and models</li><li>Employee, brand and process management</li><li>Availability and working rules</li><li>Roster generation and validation</li><li>Deployment and demo</li></ol>
+  </article>
+  <article class="panel"><h2>Core operating principle</h2><p class="muted">A roster is valid only when every required brand/process has enough qualified employees available, without double-booking anyone.</p><div class="callout">Coverage accuracy comes before visual polish.</div></article>
+</section>
+{% endblock %}

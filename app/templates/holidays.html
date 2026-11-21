@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Holiday Management | RosterFlow{% endblock %}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">WORKFORCE CONFIGURATION</p>
+        <h1>Public Holiday Management</h1>
+        <p>Manage nationwide and region-specific public holidays.</p>
+    </div>
+</section>
+
+<section class="content-card">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="section-heading">
+        <div>
+            <h2>Add Public Holiday</h2>
+            <p>Leave region blank for a nationwide holiday.</p>
+        </div>
+    </div>
+
+    <form method="POST"
+          action="{{ url_for('holidays.add_holiday') }}"
+          class="holiday-form">
+
+        <div class="form-group">
+            <label>Holiday Name</label>
+            <input type="text" name="name"
+                   maxlength="150"
+                   placeholder="Example: Diwali"
+                   required>
+        </div>
+
+        <div class="form-group">
+            <label>Holiday Date</label>
+            <input type="date" name="holiday_date" required>
+        </div>
+
+        <div class="form-group">
+            <label>Region</label>
+            <input type="text" name="region"
+                   maxlength="100"
+                   placeholder="Example: Maharashtra">
+        </div>
+
+        <button type="submit" class="btn-primary">
+            Add Holiday
+        </button>
+    </form>
+</section>
+
+<section class="content-card holiday-list">
+    <div class="section-heading">
+        <div>
+            <h2>Holiday Calendar</h2>
+            <p>View all configured public holidays.</p>
+        </div>
+        <span class="catalog-count">{{ holidays|length }} Holidays</span>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Holiday Name</th>
+                    <th>Date</th>
+                    <th>Region</th>
+                    <th>Coverage</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for holiday in holidays %}
+                    <tr>
+                        <td>{{ holiday.name }}</td>
+                        <td>{{ holiday.holiday_date }}</td>
+                        <td>{{ holiday.region or "All Regions" }}</td>
+                        <td>
+                            <span class="status-pill active">
+                                {{ "Regional" if holiday.region else "Nationwide" }}
+                            </span>
+                        </td>
+                        <td>
+                            <form method="POST"
+                                  action="{{ url_for('holidays.delete_holiday', holiday_id=holiday.id) }}"
+                                  onsubmit="return confirm('Delete this holiday?');">
+                                <button type="submit"
+                                        class="text-button danger-text">
+                                    Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="empty-state">
+                            No public holidays configured yet.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock %}
