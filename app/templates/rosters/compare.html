@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Compare versions | RosterFlow{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">COMPARE</p><h1>V{{ other.version_number }} → V{{ version.version_number }} · {{ version.roster_month.strftime('%B %Y') }}</h1>
+    <p>Errors {{ counts[0].errors }} → {{ counts[1].errors }} · Warnings {{ counts[0].warnings }} → {{ counts[1].warnings }}</p></div>
+  <a class="btn-secondary" href="{{ url_for('rosters.detail', version_id=version.id) }}">Back to V{{ version.version_number }}</a>
+</section>
+<section class="panel">
+  <h2>Changed days ({{ diff.day_changes|length }})</h2>
+  <div class="table-wrapper"><table class="data-table compact">
+    <thead><tr><th>Date</th><th>Employee</th><th>V{{ other.version_number }}</th><th>V{{ version.version_number }}</th></tr></thead>
+    <tbody>{% for d in diff.day_changes %}<tr><td>{{ d.day.strftime('%a %d %b') }}</td><td>{{ names.get(d.employee_id) }}</td>
+      <td>{{ (d.before or '—').replace('_',' ').title() }}</td><td><strong>{{ (d.after or '—').replace('_',' ').title() }}</strong></td></tr>
+    {% else %}<tr><td colspan="4" class="empty-state">No day-level differences.</td></tr>{% endfor %}</tbody></table></div>
+  <h2>Covers added ({{ diff.covers_added|length }}) / removed ({{ diff.covers_removed|length }})</h2>
+  <ul class="plain-list">
+    {% for e, b, p, d in diff.covers_added %}<li>+ {{ d.strftime('%d %b') }} {{ names.get(e) }} → {{ brands.get(b) }} / {{ processes.get(p) }}</li>{% endfor %}
+    {% for e, b, p, d in diff.covers_removed %}<li>− {{ d.strftime('%d %b') }} {{ names.get(e) }} → {{ brands.get(b) }} / {{ processes.get(p) }}</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

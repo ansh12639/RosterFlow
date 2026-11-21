@@ -1,0 +1,25 @@
+# Render Blueprint – web service only. Use an external MySQL (e.g. Aiven free tier
+# or TiDB Cloud Serverless) and paste its URL into DATABASE_URL.
+services:
+  - type: web
+    name: rosterflow
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --preload --workers 2 --timeout 120 --bind 0.0.0.0:$PORT run:app
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: MYSQL_SSL_CA
+        value: /etc/ssl/certs/ca-certificates.crt
+      - key: AUTO_SEED
+        value: "1"
+      - key: ALLOW_DEMO_RESET
+        value: "1"
+      - key: ANTHROPIC_API_KEY
+        sync: false

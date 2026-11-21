@@ -141,15 +141,6 @@
 
 <!-- EMPLOYEE ASSIGNMENTS -->
     <section class="content-card assignment-section" id="assignments">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-container">
-                {% for category, message in messages %}
-                    <div class="flash-message {{ category }}">{{ message }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
 
 
     <div class="section-heading">
@@ -209,8 +200,11 @@
         </div>
 
         <div class="form-group">
-            <label>Priority</label>
-            <input type="number" name="priority" min="1" value="1" required>
+            <label>Role</label>
+            <select name="priority" required>
+                <option value="1">Primary – counts towards coverage</option>
+                <option value="2">Backup – covers gaps only</option>
+            </select>
         </div>
 
         <button type="submit" class="btn-primary">Create Assignment</button>
@@ -225,7 +219,7 @@
                     <th>Process</th>
                     <th>Effective From</th>
                     <th>Effective To</th>
-                    <th>Priority</th>
+                    <th>Role</th>
                     <th>Status</th>
                     <th>Action</th>
                 </tr>
@@ -238,7 +232,7 @@
                         <td>{{ assignment.process.name }}</td>
                         <td>{{ assignment.effective_from }}</td>
                         <td>{{ assignment.effective_to or "Open-ended" }}</td>
-                        <td>{{ assignment.priority }}</td>
+                        <td><span class="status-pill {{ 'active' if assignment.priority == 1 else 'pending' }}">{{ assignment.role }}</span></td>
                         <td>
                             <span class="status-pill {{ 'active' if assignment.active else 'inactive' }}">
                                 {{ "Active" if assignment.active else "Inactive" }}
@@ -254,7 +248,9 @@
                                     </button>
                                 </form>
                             {% else %}
-                                <span class="muted-text">Closed</span>
+                                <form method="POST" action="{{ url_for('pods.reactivate_assignment', assignment_id=assignment.id) }}">
+                                    <button type="submit" class="text-button">Re-activate</button>
+                                </form>
                             {% endif %}
                         </td>
                     </tr>

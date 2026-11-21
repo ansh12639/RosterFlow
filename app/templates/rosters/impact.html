@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Change impact | RosterFlow{% endblock %}
+{% block crumb %}Change impact{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">HANDLING CHANGES</p>
+    <h1>Change impact (what-if)</h1>
+    <p>See what happens to an existing roster if an employee becomes unavailable, before you commit the change. Single-resource brands show as gaps with ranked covers; shared brands show whether the remaining staff can absorb it.</p>
+  </div>
+</section>
+
+<section class="panel">
+  <form method="GET" class="form-grid">
+    <div class="form-group"><label>Employee</label><select name="employee_id" required><option value="">Select</option>
+      {% for e in employees %}<option value="{{ e.id }}" {{ 'selected' if e.id == employee_id }}>{{ e.full_name }}{% if e.pod %} · {{ e.pod.name }}{% endif %}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>From</label><input type="date" name="start" value="{{ start }}" required></div>
+    <div class="form-group"><label>To</label><input type="date" name="end" value="{{ end }}"></div>
+    <div class="form-group"><label>Reason</label><select name="kind">
+      {% for k, label in [('PLANNED_LEAVE','Planned leave'),('COMP_OFF','Comp-off'),('UNAVAILABLE','Unavailable / sick')] %}<option value="{{ k }}" {{ 'selected' if k == kind }}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Roster</label><select name="version_id"><option value="">Latest for that month</option>
+      {% for v in versions %}<option value="{{ v.id }}" {{ 'selected' if version and v.id == version.id }}>{{ v.label }} ({{ v.status|lower }})</option>{% endfor %}</select></div>
+    <div class="form-group form-action"><button class="btn-primary" type="submit">Analyse impact</button></div>
+  </form>
+  {% if record %}<p class="muted">Analysing request: {{ record.employee.full_name }} · {{ record.availability_type.replace('_',' ').title() }} · status <strong>{{ record.approval_status }}</strong>{% if record.notes %} · “{{ record.notes }}”{% endif %}</p>{% endif %}
+  {% if error %}<div class="flash-message error">{{ error }}</div>{% endif %}
+</section>
+
+{% if result %}
+<section class="panel">
+  <div class="panel-heading"><div>
+    <h2>{{ result.employee }} – impact on {{ version.label }} ({{ version.status|lower }})</h2>
+    <p>{{ result.working_days|length }} rostered working day(s) affected · <strong class="text-ok">{{ result.absorbed }}</strong> duty-day(s) absorbed by remaining staff ·
+       <strong class="{{ 'text-danger' if result.gaps }}">{{ result.gaps }}</strong> would become coverage gaps</p>
+  </div></div>
+  {% if result.multi_brand_days %}
+    <div class="callout warn">⚠ Gaps across several brands on the same day:
+      {% for d, brands in result.multi_brand_days.items() %}<br>{{ d.strftime('%a %d %b') }}: {{ brands|join(', ') }}{% endfor %}</div>
+  {% endif %}
+  {% if result.rows %}
+  <div class="table-wrapper">
+  <table class="data-table">
+    <thead><tr><th>Date</th><th>Brand / process</th><th>Type</th><th class="num">After / need</th><th>Remaining staff</th><th>Result &amp; possible resolution</th></tr></thead>
+    <tbody>
+    {% for r in result.rows %}
+      <tr class="{{ 'row-gap' if not r.ok }}">
+        <td>{{ r.day.strftime('%a %d %b') }}</td><td>{{ r.scope }}</td>
+        <td>{{ 'Single resource' if r.single else 'Shared' }}</td>
+        <td class="num">{{ r.have }} / {{ r.need }}</td>
+        <td>{{ r.others|join(', ') or '—' }}</td>
+        <td>{% if r.ok %}<span class="status-pill active">Remaining staff can cover</span>
+            {% elif r.candidates %}<span class="status-pill inactive">Gap</span> Suggested cover:
+              {% for c in r.candidates[:3] %}<span class="person">{{ c.name }} <small>({{ c.reason }})</small></span>{% endfor %}
+            {% else %}<span class="status-pill inactive">Gap – no compatible cover</span> <small>Consider moving a colleague's weekly off or rejecting the request.</small>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+    <div class="callout ok">The employee is not rostered to work in this period – no coverage impact.</div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('rosters.impact_apply') }}" class="apply-form">
+    <input type="hidden" name="version_id" value="{{ version.id }}"><input type="hidden" name="employee_id" value="{{ employee_id }}">
+    <input type="hidden" name="start" value="{{ start }}"><input type="hidden" name="end" value="{{ end or start }}"><input type="hidden" name="kind" value="{{ kind }}">
+    <input name="note" placeholder="Note for the change log" maxlength="150">
+    <button class="btn-primary" type="submit">Apply to roster{% if version.status == 'PUBLISHED' %} (creates a draft revision){% endif %}</button>
+  </form>
+  <p class="muted small">Applying marks the days as {{ kind.replace('_',' ').lower() }}, removes this employee's covers, re-validates, and takes you to the conflicts with one-click cover suggestions. You can also use <em>Re-optimise</em> on the roster to re-plan the rest of the month automatically.</p>
+</section>
+{% endif %}
+{% endblock %}

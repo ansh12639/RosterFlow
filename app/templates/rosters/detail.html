@@ -1,131 +1,265 @@
-
 {% extends "base.html" %}
-
-{% block title %}Roster Details | RosterFlow{% endblock %}
-
+{% from "rosters/_macros.html" import keep, employee_grid, coverage_grid, legend %}
+{% block title %}{{ version.label }} | RosterFlow{% endblock %}
+{% block crumb %}Rosters / {{ version.label }}{% endblock %}
 {% block content %}
-
-<section class="page-header">
-    <div>
-        <p class="eyebrow">ROSTER VERSION #{{ version.id }}</p>
-        <h1>{{ version.roster_month.strftime('%B %Y') }} Roster</h1>
-        <p>
-            Version {{ version.version_number }}
-            · {{ version.status }}
-        </p>
-    </div>
-
-    <a href="{{ url_for('rosters.index') }}" class="btn-secondary">
-        Back to Rosters
-    </a>
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">ROSTER VERSION #{{ version.id }}{% if version.parent %} · FROM V{{ version.parent.version_number }}{% endif %}</p>
+    <h1>{{ version.roster_month.strftime('%B %Y') }} <span class="muted-h">V{{ version.version_number }}</span>
+      <span class="status-badge {{ version.status|lower }}">{{ version.status }}</span></h1>
+    <p class="muted">{{ version.notes or '' }}{% if version.published_at %} · Published {{ version.published_at.strftime('%d %b %Y %H:%M') }} UTC{% endif %}</p>
+  </div>
+  <div class="heading-actions">
+    <a class="btn-secondary" href="{{ url_for('rosters.index') }}">All rosters</a>
+    <details class="menu"><summary class="btn-secondary">Export ▾</summary>
+      <div class="menu-body">
+        <a href="{{ url_for('rosters.export', version_id=version.id, kind='grid') }}">Roster grid (CSV / Excel)</a>
+        <a href="{{ url_for('rosters.export', version_id=version.id, kind='entries') }}">Duty list with shifts (CSV)</a>
+        <a href="{{ url_for('rosters.export', version_id=version.id, kind='conflicts') }}">Conflicts (CSV)</a>
+      </div></details>
+  </div>
 </section>
 
-<section class="stats-grid">
-    <div class="stat-card">
-        <span>Total Assignments</span>
-        <h2>{{ entries|length }}</h2>
-    </div>
-
-    <div class="stat-card">
-        <span>Total Conflicts</span>
-        <h2>{{ conflicts|length }}</h2>
-    </div>
-
-    <div class="stat-card">
-        <span>Roster Version</span>
-        <h2>V{{ version.version_number }}</h2>
-    </div>
+<section class="stats-grid five">
+  <article class="stat-card"><span>Employees</span><h2>{{ summary.employees }}</h2><small>{{ summary.scopes }} brand/process scopes</small></article>
+  <article class="stat-card"><span>Coverage</span><h2 class="{{ 'text-ok' if summary.covered_pct == 100 else '' }}">{{ summary.covered_pct }}%</h2><small>of {{ summary.scope_days }} required scope-days</small></article>
+  <article class="stat-card {{ 'stat-danger' if summary.open_errors }}"><span>Errors (mandatory)</span><h2>{{ summary.errors }}</h2><small>{{ summary.open_errors }} unacknowledged</small></article>
+  <article class="stat-card"><span>Warnings</span><h2>{{ summary.warnings }}</h2><small>preferences, rest, multi-brand risk</small></article>
+  <article class="stat-card"><span>Backup covers</span><h2>{{ summary.covers }}</h2><small>{{ summary.info }} comp-off notices</small></article>
 </section>
 
-<section class="panel">
-    <h2>Roster Assignments</h2>
-    <p>Employee-wise process and shift allocation.</p>
+<section class="panel action-bar">
+  {% if version.editable %}
+    <form method="POST" action="{{ url_for('rosters.publish', version_id=version.id) }}" class="inline-action">
+      {% if summary.open_errors %}
+        <label class="check" title="Publishing normally requires zero open errors"><input type="checkbox" name="acknowledge"> I accept the {{ summary.open_errors }} open error(s)</label>
+      {% endif %}
+      <button class="btn-primary" type="submit">Publish roster</button>
+    </form>
+    <form method="POST" action="{{ url_for('rosters.auto_cover', version_id=version.id) }}">{{ keep(view) }}
+      <button class="btn-secondary" type="submit" title="Assign the best-ranked compatible cover to every open gap">Auto-assign covers</button></form>
+  {% else %}
+    <form method="POST" action="{{ url_for('rosters.revise', version_id=version.id) }}">
+      <input type="hidden" name="reason" value="Manual revision">
+      <button class="btn-primary" type="submit">Create editable revision</button></form>
+  {% endif %}
+  <form method="POST" action="{{ url_for('rosters.revalidate', version_id=version.id) }}">{{ keep(view) }}
+    <button class="btn-secondary" type="submit" title="Re-check against the latest rules, leave and assignments">Re-validate</button></form>
+  <form method="POST" action="{{ url_for('rosters.reoptimise', version_id=version.id) }}" class="inline-action">
+    <label>Re-optimise from <input type="date" name="from_date" min="{{ rv.days[0] }}" max="{{ rv.days[-1] }}"
+      value="{{ (today if rv.days[0] <= today <= rv.days[-1] else rv.days[0]).isoformat() }}"></label>
+    <button class="btn-secondary" type="submit" title="New version: keeps past days and manual edits, re-plans the rest">Re-optimise</button>
+  </form>
+  {% if siblings %}
+  <form method="GET" action="{{ url_for('rosters.compare', version_id=version.id) }}" class="inline-action">
+    <select name="other">{% for s in siblings %}<option value="{{ s.id }}">V{{ s.version_number }} ({{ s.status|lower }})</option>{% endfor %}</select>
+    <button class="btn-secondary" type="submit">Compare</button>
+  </form>
+  {% endif %}
+  {% if version.status != 'PUBLISHED' %}
+  <form method="POST" action="{{ url_for('rosters.delete', version_id=version.id) }}" onsubmit="return confirm('Delete this roster version?');">
+    <button class="text-button danger-text" type="submit">Delete</button></form>
+  {% endif %}
+  {% if not version.editable %}<p class="muted note-line">Published/archived rosters are read-only. Create a revision to make changes; the published version stays live until the revision is published.</p>{% endif %}
+</section>
 
-    {% if entries %}
-    <div class="table-responsive">
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Employee</th>
-                    <th>Brand</th>
-                    <th>Process</th>
-                    <th>Shift Start</th>
-                    <th>Shift End</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
+<nav class="tabs">
+  {% for key, label in [('company','Company'),('pod','Pod-wise'),('brand','Brand-wise'),('process','Process-wise'),('employee','Employee'),('day','Day'),('conflicts','Conflicts')] %}
+    <a class="{{ 'active' if view == key }}" href="{{ url_for('rosters.detail', version_id=version.id, view=key) }}">{{ label }}{% if key == 'conflicts' %} <span class="count">{{ rv.conflicts|length }}</span>{% endif %}</a>
+  {% endfor %}
+</nav>
 
-            <tbody>
-                {% for entry in entries %}
-                <tr>
-                    <td>{{ entry.roster_date.strftime('%d %b %Y') }}</td>
-                    <td>{{ entry.employee.full_name }}</td>
-                    <td>{{ entry.brand.name }}</td>
-                    <td>{{ entry.process.name }}</td>
-                    <td>
-                        {{ entry.shift_start.strftime('%H:%M') if entry.shift_start else '-' }}
-                    </td>
-                    <td>
-                        {{ entry.shift_end.strftime('%H:%M') if entry.shift_end else '-' }}
-                    </td>
-                    <td>{{ entry.status }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-        <p>No assignments found for this version.</p>
+{% if view == 'company' %}
+  <section class="panel">
+    <div class="panel-heading"><div><h2>Brand coverage</h2><p>Staff working ÷ minimum required for every brand/process and day. Click a cell for the day view.</p></div></div>
+    {{ coverage_grid(rv, version, coverage) }}
+  </section>
+  <section class="panel">
+    <div class="panel-heading"><div><h2>Company roster</h2><p>All employees grouped by pod. {% if version.editable %}Click any cell to change it – the roster is re-validated instantly.{% endif %}</p></div></div>
+    {{ legend() }}
+    {% for g in groups %}
+      <h3 class="group-title">{{ g.pod.name if g.pod else 'No pod' }}{% if g.lead %} <small>· Lead: {{ g.lead.full_name }}</small>{% endif %}</h3>
+      {{ employee_grid(rv, version, g.rows) }}
+    {% endfor %}
+  </section>
+
+{% elif view == 'pod' %}
+  <section class="panel">
+    <form method="GET" class="filter-form"><input type="hidden" name="view" value="pod">
+      <select name="pod_id" onchange="this.form.submit()">{% for p in pods %}<option value="{{ p.id }}" {{ 'selected' if p.id == pod_id }}>{{ p.name }}</option>{% endfor %}</select></form>
+    {{ legend() }}
+    {% for g in groups %}
+      <h3 class="group-title">{{ g.pod.name }}{% if g.lead %} <small>· Pod lead: {{ g.lead.full_name }}</small>{% endif %}</h3>
+      {{ employee_grid(rv, version, g.rows) }}
+    {% endfor %}
+  </section>
+
+{% elif view == 'brand' %}
+  <section class="panel">
+    <form method="GET" class="filter-form"><input type="hidden" name="view" value="brand">
+      <select name="brand_id" onchange="this.form.submit()"><option value="">All brands</option>
+        {% for b in brands %}<option value="{{ b.id }}" {{ 'selected' if b.id == brand_id }}>{{ b.name }}</option>{% endfor %}</select></form>
+    {% if brand_id and coverage %}
+      <div class="brand-summary">
+        {% for row in coverage %}
+          <div class="mini-card"><strong>{{ row.process.name }}</strong>
+            <span>{{ row.rule.schedule_label if row.rule else '' }}{% if row.rule %} · {{ row.rule.shift_start.strftime('%H:%M') }}–{{ row.rule.shift_end.strftime('%H:%M') }}{% endif %}</span>
+            <span>Primary: {{ row.people|join(', ') or 'none' }}</span>
+            {% if row.backups %}<span>Backup: {{ row.backups|join(', ') }}</span>{% endif %}
+            <span class="{{ 'text-danger' if row.gaps else 'text-ok' }}">{{ row.gaps }} uncovered day(s)</span></div>
+        {% endfor %}
+      </div>
     {% endif %}
-</section>
+    {{ coverage_grid(rv, version, coverage) }}
+  </section>
+  {% if emp_rows %}
+  <section class="panel"><h2>Assigned employees (incl. backups)</h2>{{ legend() }}{{ employee_grid(rv, version, emp_rows, True) }}</section>
+  {% endif %}
 
-<section class="panel">
-    <h2>Roster Conflicts</h2>
-    <p>Issues detected during automatic roster generation.</p>
+{% elif view == 'process' %}
+  <section class="panel">
+    <form method="GET" class="filter-form"><input type="hidden" name="view" value="process">
+      <select name="process_id" onchange="this.form.submit()">{% for p in processes %}<option value="{{ p.id }}" {{ 'selected' if p.id == process_id }}>{{ p.code }} – {{ p.name }}</option>{% endfor %}</select></form>
+    <h2>Coverage across brands</h2>
+    {{ coverage_grid(rv, version, coverage) }}
+  </section>
+  <section class="panel"><h2>Staff on this process</h2>{{ legend() }}{{ employee_grid(rv, version, emp_rows, True) }}</section>
 
-    {% if conflicts %}
-    <div class="table-responsive">
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Brand</th>
-                    <th>Process</th>
-                    <th>Conflict Type</th>
-                    <th>Severity</th>
-                    <th>Required</th>
-                    <th>Available</th>
-                    <th>Message</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for conflict in conflicts %}
-                <tr>
-                    <td>{{ conflict.roster_date.strftime('%d %b %Y') }}</td>
-                    <td>{{ conflict.brand.name if conflict.brand else '-' }}</td>
-                    <td>{{ conflict.process.name if conflict.process else '-' }}</td>
-                    <td>{{ conflict.conflict_type }}</td>
-                    <td>
-                        <span class="status-badge {{ conflict.severity|lower }}">
-                            {{ conflict.severity }}
-                        </span>
-                    </td>
-                    <td>{{ conflict.required_staff if conflict.required_staff is not none else '-' }}</td>
-                    <td>{{ conflict.available_staff if conflict.available_staff is not none else '-' }}</td>
-                    <td>{{ conflict.message }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-        <div class="empty-state">
-            <h3>No conflicts detected</h3>
-            <p>All required process coverage checks passed.</p>
+{% elif view == 'employee' %}
+  <section class="panel">
+    <form method="GET" class="filter-form"><input type="hidden" name="view" value="employee">
+      <select name="employee_id" onchange="this.form.submit()">{% for e in employees %}<option value="{{ e.id }}" {{ 'selected' if e.id == employee_id }}>{{ e.full_name }}</option>{% endfor %}</select></form>
+    {% if employee %}
+      <div class="emp-summary">
+        <div><h2>{{ employee.full_name }}</h2><p class="muted">{{ employee.designation or '' }} · {{ employee.pod.name if employee.pod else 'No pod' }} · {{ employee.weekly_offs_per_week }} weekly off(s)/week</p></div>
+        <div class="pill-row"><span class="status-pill active">{{ emp_row.worked }} working</span><span class="status-pill pending">{{ emp_row.off }} off / holiday</span><span class="status-pill inactive">{{ emp_row.leave }} leave / unavailable</span></div>
+      </div>
+      {{ legend() }}
+      {{ employee_grid(rv, version, [emp_row]) }}
+      <div class="day-list">
+      {% for d in emp_days %}
+        <div class="day-card {{ (d.row.status|lower) if d.row }} {{ 'has-issue' if d.issues }}">
+          <div class="dc-date"><strong>{{ d.day.strftime('%d') }}</strong> {{ d.day.strftime('%a') }}</div>
+          <div class="dc-body">
+            <strong>{{ d.row.status.replace('_',' ').title() if d.row else '—' }}</strong>{% if d.row and d.row.source == 'MANUAL' %} <span class="tag">manual</span>{% endif %}
+            {% if d.row and d.row.note and d.row.status != 'WORKING' %}<small>{{ d.row.note }}</small>{% endif %}
+            {% if d.holiday %}<small>🎉 {{ d.holiday }}</small>{% endif %}
+            {% for e in d.duties %}<small>{{ e.brand.name }} / {{ e.process.code }} · {{ e.shift_start.strftime('%H:%M') }}–{{ e.shift_end.strftime('%H:%M') }}</small>{% endfor %}
+            {% for e in d.covers %}<small class="cover-line">Cover: {{ e.brand.name }} / {{ e.process.code }}</small>{% endfor %}
+            {% for c in d.issues %}<small class="issue-line sev-{{ c.severity|lower }}">{{ c.message }}</small>{% endfor %}
+          </div>
         </div>
+      {% endfor %}
+      </div>
     {% endif %}
+  </section>
+
+{% elif view == 'day' %}
+  <section class="panel">
+    <div class="day-nav">
+      <form method="GET" class="filter-form"><input type="hidden" name="view" value="day">
+        <input type="date" name="date" value="{{ day.isoformat() }}" min="{{ rv.days[0] }}" max="{{ rv.days[-1] }}" onchange="this.form.submit()"></form>
+      <h2>{{ day.strftime('%A %d %B %Y') }}{% if day in rv.holidays %} · <span class="tag hol">{{ rv.holidays[day] }}</span>{% endif %}</h2>
+      <p class="muted">{{ day_info.working|length }} working · {{ day_info.off|length }} not working · {{ day_info.scopes|rejectattr('ok')|list|length }} of {{ day_info.scopes|length }} operating scopes under-staffed</p>
+    </div>
+    <div class="table-wrapper">
+    <table class="data-table">
+      <thead><tr><th>Brand / process</th><th class="num">Need</th><th>Working</th><th>Status</th>{% if version.editable %}<th>Add cover</th>{% endif %}</tr></thead>
+      <tbody>
+      {% for s in day_info.scopes %}
+        <tr class="{{ 'row-gap' if not s.ok }}">
+          <td><strong>{{ s.brand.name }}</strong> <span class="tag">{{ s.process.code }}</span></td>
+          <td class="num">{{ s.need }}</td>
+          <td>{% for e in s.staff %}
+                <span class="person {{ 'is-cover' if e.is_cover }}">{{ e.employee.full_name }}{% if e.is_cover %} (cover){% endif %}
+                {% if e.is_cover and version.editable %}
+                  <form method="POST" action="{{ url_for('rosters.remove_cover', version_id=version.id, entry_id=e.id) }}" class="inline">{{ keep('day', {'date': day.isoformat()}) }}<button class="x" title="Remove cover">×</button></form>
+                {% endif %}</span>
+              {% else %}<span class="text-danger">Nobody</span>{% endfor %}</td>
+          <td>{% if s.ok %}<span class="status-pill active">Covered</span>{% else %}<span class="status-pill inactive">Gap {{ s.staff|length }}/{{ s.need }}</span>
+              {% for c in s.issues if c.conflict_type == 'COVERAGE_GAP' %}<small class="muted">{{ c.suggestion }}</small>{% endfor %}{% endif %}</td>
+          {% if version.editable %}<td>
+            <form method="POST" action="{{ url_for('rosters.add_cover', version_id=version.id) }}" class="inline-form">{{ keep('day', {'date': day.isoformat()}) }}
+              <input type="hidden" name="brand_id" value="{{ s.brand.id }}"><input type="hidden" name="process_id" value="{{ s.process.id }}"><input type="hidden" name="date" value="{{ day.isoformat() }}">
+              <select name="employee_id">{% for w in day_info.working %}<option value="{{ w.id }}">{{ w.full_name }}</option>{% endfor %}</select>
+              <button class="btn-secondary small" type="submit">Add</button></form></td>{% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <h3>Not working</h3>
+    <div class="pill-row wrap">{% for o in day_info.off %}<span class="person st-{{ o.status|lower }}" title="{{ o.note or '' }}">{{ o.employee.full_name }} · {{ o.status.replace('_',' ').title() }}</span>{% else %}<span class="muted">Everyone is working.</span>{% endfor %}</div>
+  </section>
+
+{% elif view == 'conflicts' %}
+  <section class="panel">
+    <div class="panel-heading"><div><h2>Conflicts &amp; validation</h2>
+      <p>Errors are mandatory constraints (coverage, approved leave, fixed offs, double booking, shift limits). Warnings are soft (preferences, rest, multi-brand risk).</p></div></div>
+    <form method="GET" class="filter-form"><input type="hidden" name="view" value="conflicts">
+      <select name="severity"><option value="">All severities</option>{% for s in ['ERROR','WARNING','INFO'] %}<option {{ 'selected' if s == severity }}>{{ s }}</option>{% endfor %}</select>
+      <select name="type"><option value="">All types</option>{% for t in types %}<option {{ 'selected' if t == ctype }}>{{ t }}</option>{% endfor %}</select>
+      <button class="btn-secondary" type="submit">Filter</button></form>
+    <div class="conflict-list">
+    {% for c in items %}
+      <article class="conflict sev-{{ c.severity|lower }} {{ 'acked' if c.resolved }}">
+        <header>
+          <span class="status-badge {{ c.severity|lower }}">{{ c.severity }}</span>
+          <strong>{{ c.conflict_type.replace('_',' ').title() }}</strong>
+          <a href="{{ url_for('rosters.detail', version_id=version.id, view='day', date=c.roster_date.isoformat()) }}">{{ c.roster_date.strftime('%a %d %b') }}</a>
+          {% if c.brand %}<span class="tag">{{ c.brand.name }}{% if c.process %} / {{ c.process.code }}{% endif %}</span>{% endif %}
+          {% if c.resolved %}<span class="tag">acknowledged</span>{% endif %}
+        </header>
+        <p>{{ c.message }}</p>
+        {% if c.suggestion %}<p class="suggestion">💡 {{ c.suggestion }}</p>{% endif %}
+        {% if c.candidates and version.editable and c.conflict_type in ('COVERAGE_GAP','UNASSIGNED_REQUIREMENT') %}
+          <div class="candidates">
+            {% for cand in c.candidates %}
+              <form method="POST" action="{{ url_for('rosters.add_cover', version_id=version.id) }}">{{ keep('conflicts') }}
+                <input type="hidden" name="employee_id" value="{{ cand.employee_id }}"><input type="hidden" name="brand_id" value="{{ c.brand_id }}">
+                <input type="hidden" name="process_id" value="{{ c.process_id }}"><input type="hidden" name="date" value="{{ c.roster_date.isoformat() }}">
+                <button class="btn-secondary small" type="submit" title="{{ cand.reason }}">Assign {{ cand.name }} <small>({{ cand.reason }})</small></button>
+              </form>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="ai-box" {% if not c.ai_explanation %}hidden{% endif %}>{{ c.ai_explanation or '' }}</div>
+        <footer>
+          <button class="text-button" type="button" data-explain="{{ url_for('rosters.explain_conflict', conflict_id=c.id) }}">Explain this</button>
+          {% if c.severity != 'INFO' %}
+          <form method="POST" action="{{ url_for('rosters.acknowledge', conflict_id=c.id) }}" class="inline">{{ keep('conflicts') }}
+            <button class="text-button" type="submit">{{ 'Re-open' if c.resolved else 'Acknowledge' }}</button></form>
+          {% endif %}
+          {% if c.employee %}<a class="text-button" href="{{ url_for('rosters.detail', version_id=version.id, view='employee', employee_id=c.employee_id) }}">Open {{ c.employee.full_name }}</a>{% endif %}
+        </footer>
+      </article>
+    {% else %}
+      <div class="empty-state"><h3>No conflicts</h3><p>Every requirement is satisfied for this filter.</p></div>
+    {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+<section class="panel">
+  <details><summary><strong>Change log</strong> <span class="muted">({{ log|length }} most recent)</span></summary>
+    <ul class="log">{% for l in log %}<li><time>{{ l.created_at.strftime('%d %b %H:%M') }}</time> <span class="tag">{{ l.action }}</span> {{ l.description }}</li>{% else %}<li class="muted">No changes yet.</li>{% endfor %}</ul>
+  </details>
 </section>
 
+{% if version.editable %}
+<dialog id="cell-dialog">
+  <form method="POST" action="{{ url_for('rosters.edit_day', version_id=version.id) }}">
+    {{ keep(view) }}
+    <input type="hidden" name="employee_id"><input type="hidden" name="date">
+    <h3 data-title>Edit day</h3>
+    <p class="muted" data-current></p>
+    <label>New status
+      <select name="status">{% for s in editable_statuses %}<option value="{{ s }}">{{ s.replace('_',' ').title() }}</option>{% endfor %}</select></label>
+    <label>Note (optional)<input name="note" maxlength="200" placeholder="e.g. swapped with Ravi"></label>
+    <p class="muted small">Saving re-validates the whole roster and tells you whether this change created or resolved errors.</p>
+    <div class="dialog-actions"><button type="button" class="btn-secondary" data-close>Cancel</button><button class="btn-primary" type="submit">Save &amp; validate</button></div>
+  </form>
+</dialog>
+{% endif %}
 {% endblock %}

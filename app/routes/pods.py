@@ -17,7 +17,11 @@ def index():
     brands = Brand.query.filter_by(active=True).order_by(Brand.name).all()
     processes = Process.query.filter_by(active=True).order_by(Process.name).all()
 
-    assignments = Assignment.query.order_by(Assignment.created_at.desc()).all()
+    assignments = (
+        Assignment.query.join(Brand)
+        .order_by(Assignment.active.desc(), Brand.name, Assignment.priority)
+        .all()
+    )
 
     return render_template(
         "pods.html",
@@ -224,6 +228,15 @@ def add_assignment():
     db.session.commit()
 
     flash("Employee assignment created successfully.", "success")
+    return redirect(url_for("pods.index") + "#assignments")
+
+
+@pods_bp.post("/assignments/<int:assignment_id>/reactivate")
+def reactivate_assignment(assignment_id):
+    assignment = db.get_or_404(Assignment, assignment_id)
+    assignment.active = True
+    db.session.commit()
+    flash("Assignment re-activated.", "success")
     return redirect(url_for("pods.index") + "#assignments")
 
 

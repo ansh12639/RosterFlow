@@ -13,16 +13,6 @@
     </div>
 </section>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        <div class="flash-container">
-            {% for category, message in messages %}
-                <div class="flash {{ category }}">{{ message }}</div>
-            {% endfor %}
-        </div>
-    {% endif %}
-{% endwith %}
-
 <section class="stats-grid">
     <div class="stat-card">
         <span>Total Employees</span>
@@ -80,6 +70,16 @@
                     {% endfor %}
                 </select>
             </div>
+
+            <div class="form-group">
+                <label>Designation</label>
+                <input name="designation" placeholder="CX Executive">
+            </div>
+
+            <div class="form-group">
+                <label>Weekly offs / week</label>
+                <input type="number" name="weekly_offs_per_week" min="0" max="3" value="1" required>
+            </div>
         </div>
 
         <button type="submit" class="btn-primary">
@@ -125,6 +125,8 @@
                     <th>Code</th>
                     <th>Email</th>
                     <th>Pod</th>
+                    <th>Brands (primary)</th>
+                    <th>Offs/wk</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -135,12 +137,18 @@
                 <tr>
                     <td>
                         <strong>{{ employee.full_name }}</strong>
-                        <small>{{ employee.phone or 'No phone' }}</small>
+                        <small>{{ employee.designation or '' }} · {{ employee.phone or 'No phone' }}</small>
                     </td>
 
                     <td>{{ employee.employee_code }}</td>
                     <td>{{ employee.email }}</td>
-                    <td>{{ employee.pod.name if employee.pod else 'Unassigned' }}</td>
+                    <td>{{ employee.pod.name if employee.pod else 'Unassigned' }}
+                        {% if employee.led_pods %}<span class="status-pill pending">Lead</span>{% endif %}</td>
+                    <td>{% set prim = employee.assignments|selectattr('active')|selectattr('priority','equalto',1)|map(attribute='brand.name')|unique|list %}
+                        {{ prim|join(', ') or '—' }}
+                        {% set bk = employee.assignments|selectattr('active')|rejectattr('priority','equalto',1)|list %}
+                        {% if bk %}<small>Backup for {{ bk|length }}</small>{% endif %}</td>
+                    <td>{{ employee.weekly_offs_per_week }}</td>
 
                     <td>
                         <span class="status-badge {{ 'active' if employee.active else 'inactive' }}">
@@ -183,6 +191,13 @@
                                     {% endfor %}
                                 </select>
 
+                                <label>Designation</label>
+                                <input name="designation" value="{{ employee.designation or '' }}">
+
+                                <label>Weekly offs / week</label>
+                                <input type="number" name="weekly_offs_per_week" min="0" max="3"
+                                       value="{{ employee.weekly_offs_per_week }}" required>
+
                                 <button class="btn-primary" type="submit">
                                     Save Changes
                                 </button>
@@ -202,7 +217,7 @@
 
                 {% else %}
                 <tr>
-                    <td colspan="6" class="empty-state">
+                    <td colspan="8" class="empty-state">
                         No employees found. Add your first employee above.
                     </td>
                 </tr>

@@ -12,23 +12,11 @@
     </div>
 </section>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        <div class="flash-container">
-            {% for category, message in messages %}
-                <div class="flash-message {{ category }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-{% endwith %}
-
 <section class="content-card">
     <div class="section-heading">
         <div>
             <h2>Assign Weekly Off</h2>
-            <p>Select an employee, weekday and effective period.</p>
+            <p>Every employee automatically gets their required number of weekly offs (set on the Employees page). Use this page for <strong>preferred</strong> days (granted when coverage allows) or <strong>fixed</strong> contractual days.</p>
         </div>
     </div>
 
@@ -55,6 +43,14 @@
                 {% for number, day in weekdays.items() %}
                     <option value="{{ number }}">{{ day }}</option>
                 {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Type</label>
+            <select name="kind">
+                <option value="PREFERRED">Preferred (soft – coverage can override)</option>
+                <option value="FIXED">Fixed (hard – contractual)</option>
             </select>
         </div>
 
@@ -90,6 +86,7 @@
                     <th>Employee</th>
                     <th>Employee Code</th>
                     <th>Weekly Off</th>
+                    <th>Type</th>
                     <th>Effective From</th>
                     <th>Effective To</th>
                     <th>Status</th>
@@ -103,6 +100,7 @@
                         <td>{{ record.employee.full_name }}</td>
                         <td>{{ record.employee.employee_code }}</td>
                         <td>{{ weekdays[record.weekday] }}</td>
+                        <td><span class="status-pill {{ 'inactive' if record.kind == 'FIXED' else 'pending' }}">{{ record.kind|title }}</span></td>
                         <td>{{ record.effective_from }}</td>
                         <td>{{ record.effective_to or "Open-ended" }}</td>
 
@@ -131,12 +129,16 @@
                             {% else %}
                                 <span class="muted-text">Closed</span>
                             {% endif %}
+                            <form method="POST" action="{{ url_for('weekly_offs.delete_weekly_off', record_id=record.id) }}"
+                                  onsubmit="return confirm('Delete this weekly-off rule?');">
+                                <button type="submit" class="text-button danger-text">Delete</button>
+                            </form>
                         </td>
                     </tr>
 
                 {% else %}
                     <tr>
-                        <td colspan="7" class="empty-state">
+                        <td colspan="8" class="empty-state">
                             No weekly-off schedules configured yet.
                         </td>
                     </tr>

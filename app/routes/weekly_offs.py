@@ -40,6 +40,9 @@ def index():
 def add_weekly_off():
     employee_id = request.form.get("employee_id", type=int)
     weekday = request.form.get("weekday", type=int)
+    kind = request.form.get("kind", "PREFERRED")
+    if kind not in ("FIXED", "PREFERRED"):
+        kind = "PREFERRED"
 
     start_raw = request.form.get("effective_from", "").strip()
     end_raw = request.form.get("effective_to", "").strip()
@@ -90,6 +93,7 @@ def add_weekly_off():
     record = EmployeeWeeklyOff(
         employee_id=employee.id,
         weekday=weekday,
+        kind=kind,
         effective_from=effective_from,
         effective_to=effective_to,
     )
@@ -98,7 +102,7 @@ def add_weekly_off():
     db.session.commit()
 
     flash(
-        f"{WEEKDAYS[weekday]} weekly off assigned to {employee.full_name}.",
+        f"{kind.title()} {WEEKDAYS[weekday]} weekly off assigned to {employee.full_name}.",
         "success",
     )
 
@@ -125,4 +129,13 @@ def close_weekly_off(record_id):
     db.session.commit()
 
     flash("Weekly-off schedule closed successfully.", "success")
+    return redirect(url_for("weekly_offs.index"))
+
+
+@weekly_offs_bp.post("/<int:record_id>/delete")
+def delete_weekly_off(record_id):
+    record = db.get_or_404(EmployeeWeeklyOff, record_id)
+    db.session.delete(record)
+    db.session.commit()
+    flash("Weekly-off rule deleted.", "success")
     return redirect(url_for("weekly_offs.index"))

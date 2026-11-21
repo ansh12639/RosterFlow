@@ -28,7 +28,7 @@ def index():
     elif status == "inactive":
         query = query.filter_by(active=False)
 
-    employees = query.order_by(Employee.id.desc()).all()
+    employees = query.order_by(Employee.employee_code).all()
     return render_template(
         "employees/list.html",
         employees=employees,
@@ -45,6 +45,12 @@ def add():
     email = request.form.get("email", "").strip()
     phone = request.form.get("phone", "").strip()
     pod_id = request.form.get("pod_id") or None
+    designation = request.form.get("designation", "").strip() or None
+    weekly_offs = request.form.get("weekly_offs_per_week", 1, type=int)
+
+    if weekly_offs is None or not 0 <= weekly_offs <= 3:
+        flash("Weekly offs per week must be between 0 and 3.", "error")
+        return redirect(url_for("employees.index"))
 
     if not employee_code or not full_name or not email:
         flash("Employee code, name and email are required.", "error")
@@ -56,6 +62,8 @@ def add():
         email=email,
         phone=phone or None,
         pod_id=int(pod_id) if pod_id else None,
+        designation=designation,
+        weekly_offs_per_week=weekly_offs,
         active=True,
     )
 
@@ -81,10 +89,18 @@ def edit(employee_id):
 
     pod_id = request.form.get("pod_id") or None
     employee.pod_id = int(pod_id) if pod_id else None
+    employee.designation = request.form.get("designation", "").strip() or None
+    weekly_offs = request.form.get("weekly_offs_per_week", employee.weekly_offs_per_week, type=int)
 
     if not employee.employee_code or not employee.full_name or not employee.email:
+        db.session.rollback()
         flash("Employee code, name and email are required.", "error")
         return redirect(url_for("employees.index"))
+    if weekly_offs is None or not 0 <= weekly_offs <= 3:
+        db.session.rollback()
+        flash("Weekly offs per week must be between 0 and 3.", "error")
+        return redirect(url_for("employees.index"))
+    employee.weekly_offs_per_week = weekly_offs
 
     try:
         db.session.commit()

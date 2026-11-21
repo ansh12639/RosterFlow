@@ -1,0 +1,81 @@
+{% macro keep(view, extra={}) -%}
+  <input type="hidden" name="v_view" value="{{ view }}">
+  {% for k, v in request.args.items() if k != 'view' %}<input type="hidden" name="v_{{ k }}" value="{{ v }}">{% endfor %}
+  {% for k, v in extra.items() %}<input type="hidden" name="v_{{ k }}" value="{{ v }}">{% endfor %}
+{%- endmacro %}
+
+{% macro day_header(rv, version, first_label='Employee', extra_cols=[]) -%}
+  <thead><tr>
+    <th class="sticky-col">{{ first_label }}</th>
+    {% for col in extra_cols %}<th class="num">{{ col }}</th>{% endfor %}
+    {% for d in rv.days %}
+      <th class="day-col {{ 'wkend' if d.weekday() == 6 }} {{ 'hol' if d in rv.holidays }}" title="{{ rv.holidays.get(d, d.strftime('%A')) }}">
+        <a href="{{ url_for('rosters.detail', version_id=version.id, view='day', date=d.isoformat()) }}">{{ d.day }}<br><small>{{ d.strftime('%a')[:2] }}</small></a>
+      </th>
+    {% endfor %}
+  </tr></thead>
+{%- endmacro %}
+
+{% macro employee_grid(rv, version, rows, show_pod=False) -%}
+  <div class="grid-wrap">
+  <table class="roster-grid">
+    {{ day_header(rv, version, 'Employee', ['W', 'Off']) }}
+    <tbody>
+    {% for row in rows %}
+      {% set e = row.employee %}
+      <tr>
+        <th class="sticky-col emp-name">
+          <a href="{{ url_for('rosters.detail', version_id=version.id, view='employee', employee_id=e.id) }}">{{ e.full_name }}</a>
+          {% if e.led_pods %}<span class="tag">Lead</span>{% endif %}
+          {% if show_pod and e.pod %}<small>{{ e.pod.name }}</small>{% endif %}
+        </th>
+        <td class="num">{{ row.worked }}</td><td class="num">{{ row.off }}</td>
+        {% for d in rv.days %}{% set c = row.cells[loop.index0] %}
+          {% if c %}
+          <td class="cell {{ c.css }} {{ 'manual' if c.manual }} {{ 'issue' if c.issue }} {{ 'editable' if version.editable }}"
+              title="{{ c.title }}" data-emp="{{ e.id }}" data-name="{{ e.full_name }}" data-date="{{ d.isoformat() }}"
+              data-status="{{ c.status }}" data-note="{{ c.note }}">{{ c.code }}</td>
+          {% else %}<td class="cell"></td>{% endif %}
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+{%- endmacro %}
+
+{% macro coverage_grid(rv, version, rows) -%}
+  <div class="grid-wrap">
+  <table class="roster-grid coverage">
+    {{ day_header(rv, version, 'Brand / process', ['Staff', 'Gaps']) }}
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <th class="sticky-col emp-name" title="{{ row.rule.schedule_label if row.rule else 'date override only' }} · Primary: {{ row.people|join(', ') or 'none' }}{% if row.backups %} · Backup: {{ row.backups|join(', ') }}{% endif %}">
+          <a href="{{ url_for('rosters.detail', version_id=version.id, view='brand', brand_id=row.brand.id) }}">{{ row.brand.name }}</a>
+          <span class="tag">{{ row.process.code }}</span>
+          <small>{{ row.rule.schedule_label if row.rule else '' }}</small>
+        </th>
+        <td class="num" title="{{ row.people|join(', ') }}">{{ row.staffing }}</td>
+        <td class="num {{ 'text-danger' if row.gaps }}">{{ row.gaps }}</td>
+        {% for c in row.cells %}
+          <td class="cell {{ c.css }}" title="{{ c.title }}"><a href="{{ url_for('rosters.detail', version_id=version.id, view='day', date=c.day.isoformat()) }}">{{ c.label }}</a></td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+{%- endmacro %}
+
+{% macro legend() -%}
+  <div class="legend">
+    <span><i class="cell st-work">W</i>Working</span><span><i class="cell st-work">W+</i>Working + covering</span>
+    <span><i class="cell st-off">WO</i>Weekly off</span><span><i class="cell st-hol">PH</i>Public holiday</span>
+    <span><i class="cell st-leave">L</i>Leave</span><span><i class="cell st-comp">CO</i>Comp-off</span>
+    <span><i class="cell st-unav">UA</i>Unavailable</span><span><i class="cell manual">M</i>Manual edit</span>
+    <span><i class="cell issue">!</i>Has issue</span>
+    <span><i class="cell cv-ok">1/1</i>Covered</span><span><i class="cell cv-cover">1/1</i>Covered by backup</span>
+    <span><i class="cell cv-gap">0/1</i>Gap</span><span><i class="cell cv-closed"></i>Closed</span>
+  </div>
+{%- endmacro %}

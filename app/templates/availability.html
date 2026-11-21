@@ -14,22 +14,10 @@
 
 <section class="content-card">
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-container">
-                {% for category, message in messages %}
-                    <div class="flash-message {{ category }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
-
     <div class="section-heading">
         <div>
             <h2>Submit Availability Request</h2>
-            <p>New requests are submitted with Pending approval status.</p>
+            <p>Pending requests are not scheduled. Approving a request opens its roster impact so the coverage effect is visible before you apply it.</p>
         </div>
     </div>
 
@@ -67,6 +55,14 @@
         <div class="form-group">
             <label>End Date</label>
             <input type="date" name="end_date" required>
+        </div>
+
+        <div class="form-group">
+            <label>Approval</label>
+            <select name="approval_status">
+                <option value="PENDING">Pending (request)</option>
+                <option value="APPROVED">Approved (manager entry)</option>
+            </select>
         </div>
 
         <div class="form-group full-width">
@@ -155,6 +151,13 @@
                                     Update
                                 </button>
                             </form>
+                            <div class="row-actions">
+                                <a class="text-button" href="{{ url_for('rosters.impact', availability_id=record.id) }}">Check roster impact</a>
+                                <form method="POST" action="{{ url_for('availability.delete', record_id=record.id) }}"
+                                      onsubmit="return confirm('Delete this record?');">
+                                    <button type="submit" class="text-button danger-text">Delete</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
 
