@@ -1,119 +1,51 @@
-
 {% extends "base.html" %}
-
-{% block title %}Roster Management | RosterFlow{% endblock %}
-
+{% block title %}Rosters | RosterFlow{% endblock %}
+{% block crumb %}Rosters{% endblock %}
 {% block content %}
-
-<section class="page-header">
-    <div>
-        <p class="eyebrow">WORKFORCE PLANNING</p>
-        <h1>Roster Management</h1>
-        <p>Generate monthly employee schedules and manage roster versions.</p>
-    </div>
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">WORKFORCE PLANNING</p>
+    <h1>Monthly rosters</h1>
+    <p>Generate a roster for any month. Each generation creates a new DRAFT version; publish it once conflicts are resolved or acknowledged.</p>
+  </div>
 </section>
 
 <section class="panel">
-    <h2>Generate Monthly Roster</h2>
-    <p>Select a month and year to generate a new roster version.</p>
-
-    <form method="POST" action="{{ url_for('rosters.generate') }}"
-          class="form-grid">
-
-        <div class="form-group">
-            <label for="month">Month</label>
-            <select name="month" id="month" required>
-                {% for number, name in [
-                    (1, 'January'), (2, 'February'),
-                    (3, 'March'), (4, 'April'),
-                    (5, 'May'), (6, 'June'),
-                    (7, 'July'), (8, 'August'),
-                    (9, 'September'), (10, 'October'),
-                    (11, 'November'), (12, 'December')
-                ] %}
-                    <option value="{{ number }}"
-                        {% if number == current_month %}selected{% endif %}>
-                        {{ name }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label for="year">Year</label>
-            <input
-                type="number"
-                id="year"
-                name="year"
-                value="{{ current_year }}"
-                min="2020"
-                max="2100"
-                required
-            >
-        </div>
-
-        <div class="form-group form-action">
-            <button type="submit" class="btn-primary">
-                Generate Roster
-            </button>
-        </div>
-    </form>
+  <h2>Generate a roster</h2>
+  <form method="POST" action="{{ url_for('rosters.generate') }}" class="form-grid">
+    <div class="form-group"><label for="month">Month</label>
+      <select name="month" id="month" required>{% for n, name in months %}<option value="{{ n }}" {{ 'selected' if n == current_month }}>{{ name }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label for="year">Year</label><input type="number" id="year" name="year" value="{{ current_year }}" min="2020" max="2100" required></div>
+    <div class="form-group"><label for="notes">Note (optional)</label><input id="notes" name="notes" placeholder="e.g. after Q4 staffing change"></div>
+    <div class="form-group form-action"><button type="submit" class="btn-primary">Generate roster</button></div>
+  </form>
+  <p class="muted small">The engine reads the current employees, assignments, working rules, approved leave, weekly-off rules, holidays and date overrides. It never hides a problem: anything it cannot satisfy is reported as a conflict with suggested fixes.</p>
 </section>
 
 <section class="panel">
-    <div class="section-heading">
-        <div>
-            <h2>Saved Roster Versions</h2>
-            <p>Previously generated monthly rosters.</p>
-        </div>
-        <span class="count-badge">{{ versions|length }} Versions</span>
-    </div>
-
-    {% if versions %}
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Version ID</th>
-                        <th>Roster Month</th>
-                        <th>Version</th>
-                        <th>Status</th>
-                        <th>Generated At</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {% for version in versions %}
-                    <tr>
-                        <td>#{{ version.id }}</td>
-                        <td>{{ version.roster_month.strftime('%B %Y') }}</td>
-                        <td>V{{ version.version_number }}</td>
-                        <td>
-                            <span class="status-badge {{ version.status|lower }}">
-                                {{ version.status }}
-                            </span>
-                        </td>
-                        <td>
-                            {{ version.generated_at.strftime('%d %b %Y %H:%M') }}
-                        </td>
-                        <td>
-                            <a class="btn-secondary"
-                               href="{{ url_for('rosters.detail', version_id=version.id) }}">
-                                View Details
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <div class="empty-state">
-            <h3>No roster versions yet</h3>
-            <p>Generate your first monthly roster to get started.</p>
-        </div>
-    {% endif %}
+  <div class="panel-heading"><div><h2>Roster versions</h2></div><span class="catalog-count">{{ versions|length }} versions</span></div>
+  {% if versions %}
+  <div class="table-wrapper">
+  <table class="data-table">
+    <thead><tr><th>Month</th><th>Version</th><th>Status</th><th>Errors</th><th>Warnings</th><th>Generated</th><th>Notes</th><th></th></tr></thead>
+    <tbody>
+    {% for v in versions %}
+      <tr class="{{ 'row-muted' if v.status == 'ARCHIVED' }}">
+        <td><strong>{{ v.roster_month.strftime('%B %Y') }}</strong></td>
+        <td>V{{ v.version_number }}{% if v.parent %} <small>from V{{ v.parent.version_number }}</small>{% endif %}</td>
+        <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
+        <td class="{{ 'text-danger' if counts[v.id].open_errors }}">{{ counts[v.id].errors }}{% if counts[v.id].errors and not counts[v.id].open_errors %} <small>(acknowledged)</small>{% endif %}</td>
+        <td>{{ counts[v.id].warnings }}</td>
+        <td>{{ v.generated_at.strftime('%d %b %Y %H:%M') }}</td>
+        <td><small>{{ v.notes or '' }}</small></td>
+        <td><a class="btn-secondary" href="{{ url_for('rosters.detail', version_id=v.id) }}">Open</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+    <div class="empty-state"><h3>No roster versions yet</h3><p>Generate your first monthly roster above.</p></div>
+  {% endif %}
 </section>
-
 {% endblock %}

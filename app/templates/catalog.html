@@ -13,16 +13,6 @@
     </div>
 </section>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        <div class="flash-container">
-            {% for category, message in messages %}
-                <div class="flash {{ category }}">{{ message }}</div>
-            {% endfor %}
-        </div>
-    {% endif %}
-{% endwith %}
-
 
 <!-- BRAND MANAGEMENT -->
 
@@ -62,6 +52,7 @@
                 <tr>
                     <th>Brand Name</th>
                     <th>Description</th>
+                    <th>Staffing model</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -73,6 +64,7 @@
                     <td><strong>{{ brand.name }}</strong></td>
 
                     <td>{{ brand.description or 'No description' }}</td>
+                    <td><span class="status-pill {{ 'active' if brand.primary_employee_ids|length == 1 else 'pending' }}">{{ brand.staffing_model }}</span></td>
 
                     <td>
                         <span class="status-badge {{ 'active' if brand.active else 'inactive' }}">
@@ -115,7 +107,7 @@
 
                 {% else %}
                 <tr>
-                    <td colspan="4" class="empty-state">
+                    <td colspan="5" class="empty-state">
                         No brands added yet.
                     </td>
                 </tr>

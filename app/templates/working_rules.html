@@ -1,184 +1,112 @@
 {% extends "base.html" %}
-
 {% block title %}Working Rules | RosterFlow{% endblock %}
-
+{% block crumb %}Working rules{% endblock %}
 {% block content %}
-
 <section class="page-heading">
-    <div>
-        <p class="eyebrow">WORKFORCE CONFIGURATION</p>
-        <h1>Working Rules</h1>
-        <p>Configure operating calendars and minimum staffing requirements.</p>
-    </div>
+  <div>
+    <p class="eyebrow">CLIENT OPERATING RULES</p>
+    <h1>Working Rules</h1>
+    <p>Each brand/process has its own operating calendar and minimum staffing. This is the brand's calendar – employees' own schedules (weekly offs, leave) are configured separately.</p>
+  </div>
 </section>
 
-<section class="content-card">
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-container">
-                {% for category, message in messages %}
-                    <div class="flash-message {{ category }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
-
-    <div class="section-heading">
-        <div>
-            <h2>Create Working Rule</h2>
-            <p>Define operating days and staffing requirements for a brand-process combination.</p>
-        </div>
+<section class="panel">
+  <div class="panel-heading"><div><h2>Create working rule</h2>
+    <p>Pick a preset, or choose "Custom" and set the minimum staff for each weekday (0 = closed).</p></div></div>
+  <form method="POST" action="{{ url_for('working_rules.add_rule') }}" class="rule-form" id="rule-form">
+    <div class="form-grid">
+      <div class="form-group"><label>Brand</label>
+        <select name="brand_id" required><option value="">Select brand</option>
+          {% for b in brands %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label>Process</label>
+        <select name="process_id" required><option value="">Select process</option>
+          {% for p in processes %}<option value="{{ p.id }}">{{ p.code }} – {{ p.name }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label>Rule name (optional)</label><input name="rule_name" placeholder="e.g. UrbanKicks CS 365"></div>
+      <div class="form-group"><label>Schedule</label>
+        <select name="preset" data-preset-toggle>
+          {% for key, p in presets.items() %}<option value="{{ key }}">{{ p[2] }}</option>{% endfor %}
+          <option value="CUSTOM">Custom – per-weekday staffing</option>
+        </select></div>
+      <div class="form-group" data-preset-only><label>Staff needed each open day</label><input type="number" name="preset_staff" value="1" min="1" max="20"></div>
+      <div class="form-group"><label>Shift start</label><input type="time" name="shift_start" value="10:00" required></div>
+      <div class="form-group"><label>Shift end</label><input type="time" name="shift_end" value="19:00" required></div>
+      <div class="form-group"><label>Effective from</label><input type="date" name="effective_from" value="{{ today.replace(day=1).isoformat() }}" required></div>
+      <div class="form-group"><label>Effective to (optional)</label><input type="date" name="effective_to"></div>
     </div>
-
-    <form method="POST"
-          action="{{ url_for('working_rules.add_rule') }}"
-          class="working-rule-form">
-
-        <div class="form-group">
-            <label>Rule Name</label>
-            <input type="text" name="rule_name"
-                   placeholder="Example: Nike Customer Support Rule"
-                   required>
-        </div>
-
-        <div class="form-group">
-            <label>Brand</label>
-            <select name="brand_id" required>
-                <option value="">Select brand</option>
-                {% for brand in brands %}
-                    <option value="{{ brand.id }}">{{ brand.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Process</label>
-            <select name="process_id" required>
-                <option value="">Select process</option>
-                {% for process in processes %}
-                    <option value="{{ process.id }}">
-                        {{ process.code }} - {{ process.name }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Minimum Staff Per Day</label>
-            <input type="number" name="minimum_staff"
-                   min="1" value="1" required>
-        </div>
-
-        <div class="form-group">
-            <label>Effective From</label>
-            <input type="date" name="effective_from" required>
-        </div>
-
-        <div class="form-group">
-            <label>Effective To (Optional)</label>
-            <input type="date" name="effective_to">
-        </div>
-
-        <div class="schedule-options">
-            <h3>Operating Schedule</h3>
-
-            <label class="schedule-option">
-                <input type="checkbox"
-                       name="operates_monday_to_saturday"
-                       checked>
-                Monday to Saturday
-            </label>
-
-            <label class="schedule-option">
-                <input type="checkbox" name="operates_sunday">
-                Sunday
-            </label>
-
-            <label class="schedule-option">
-                <input type="checkbox" name="operates_public_holidays">
-                Public Holidays
-            </label>
-        </div>
-
-        <button type="submit" class="btn-primary">
-            Create Working Rule
-        </button>
-
-    </form>
+    <div class="custom-days" data-custom-only hidden>
+      {% for d in weekdays %}
+        <label class="day-input">{{ d }}<input type="number" name="min_{{ loop.index0 }}" min="0" max="20" value="{{ 0 if loop.index0 == 6 else 1 }}"></label>
+      {% endfor %}
+      <label class="check"><input type="checkbox" name="operates_public_holidays"> Operates on public holidays</label>
+    </div>
+    <button class="btn-primary" type="submit">Create rule</button>
+  </form>
 </section>
 
-<section class="content-card rules-list-section">
-    <div class="section-heading">
-        <div>
-            <h2>Configured Working Rules</h2>
-            <p>View and manage your existing operating rules.</p>
-        </div>
-        <span class="catalog-count">{{ rules|length }} Total Rules</span>
-    </div>
-
-    <div class="table-wrapper">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Rule Name</th>
-                    <th>Brand</th>
-                    <th>Process</th>
-                    <th>Minimum Staff</th>
-                    <th>Monday–Saturday</th>
-                    <th>Sunday</th>
-                    <th>Public Holidays</th>
-                    <th>Effective From</th>
-                    <th>Effective To</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for rule in rules %}
-                    <tr>
-                        <td>{{ rule.rule_name }}</td>
-                        <td>{{ rule.brand.name }}</td>
-                        <td>{{ rule.process.name }}</td>
-                        <td>{{ rule.minimum_staff }}</td>
-
-                        <td>{{ "Yes" if rule.operates_monday_to_saturday else "No" }}</td>
-                        <td>{{ "Yes" if rule.operates_sunday else "No" }}</td>
-                        <td>{{ "Yes" if rule.operates_public_holidays else "No" }}</td>
-
-                        <td>{{ rule.effective_from }}</td>
-                        <td>{{ rule.effective_to or "Open-ended" }}</td>
-
-                        <td>
-                            <span class="status-pill {{ 'active' if rule.active else 'inactive' }}">
-                                {{ "Active" if rule.active else "Inactive" }}
-                            </span>
-                        </td>
-
-                        <td>
-                            <form method="POST"
-                                  action="{{ url_for('working_rules.toggle_rule', rule_id=rule.id) }}">
-                                <button type="submit"
-                                        class="text-button {{ 'danger-text' if rule.active else '' }}">
-                                    {{ "Deactivate" if rule.active else "Activate" }}
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-
-                {% else %}
-                    <tr>
-                        <td colspan="11" class="empty-state">
-                            No working rules configured yet.
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<section class="panel">
+  <div class="panel-heading"><div><h2>Configured rules</h2><p>{{ rules|length }} rules. Edit to change staffing or hours; existing rosters can then be re-validated.</p></div></div>
+  <div class="table-wrapper">
+  <table class="data-table">
+    <thead><tr><th>Brand / Process</th><th>Calendar</th>{% for d in weekdays %}<th class="num">{{ d }}</th>{% endfor %}<th>Hours</th><th>Effective</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rules %}
+      <tr class="{{ 'row-muted' if not r.active }}">
+        <td><strong>{{ r.brand.name }}</strong><small>{{ r.process.code }} – {{ r.process.name }}</small></td>
+        <td>{{ r.schedule_label }}</td>
+        {% for m in r.minimums %}<td class="num {{ 'closed-cell' if m == 0 }}">{{ m if m else '–' }}</td>{% endfor %}
+        <td>{{ r.shift_start.strftime('%H:%M') }}–{{ r.shift_end.strftime('%H:%M') }}</td>
+        <td><small>{{ r.effective_from }}{% if r.effective_to %} → {{ r.effective_to }}{% endif %}</small></td>
+        <td><span class="status-pill {{ 'active' if r.active else 'inactive' }}">{{ 'Active' if r.active else 'Inactive' }}</span></td>
+        <td>
+          <details class="edit-details"><summary>Edit</summary>
+            <form method="POST" action="{{ url_for('working_rules.edit_rule', rule_id=r.id) }}" class="edit-form">
+              <input type="hidden" name="preset" value="CUSTOM">
+              <label>Rule name</label><input name="rule_name" value="{{ r.rule_name }}">
+              <div class="custom-days">
+                {% for d in weekdays %}<label class="day-input">{{ d }}<input type="number" name="min_{{ loop.index0 }}" min="0" max="20" value="{{ r.minimums[loop.index0] }}"></label>{% endfor %}
+              </div>
+              <label class="check"><input type="checkbox" name="operates_public_holidays" {{ 'checked' if r.operates_public_holidays }}> Operates on public holidays</label>
+              <label>Shift</label>
+              <div class="inline-pair"><input type="time" name="shift_start" value="{{ r.shift_start.strftime('%H:%M') }}"><input type="time" name="shift_end" value="{{ r.shift_end.strftime('%H:%M') }}"></div>
+              <label>End date (optional)</label><input type="date" name="effective_to" value="{{ r.effective_to or '' }}">
+              <button class="btn-primary" type="submit">Save</button>
+            </form>
+          </details>
+          <form method="POST" action="{{ url_for('working_rules.toggle_rule', rule_id=r.id) }}">
+            <button class="text-button {{ 'danger-text' if r.active }}" type="submit">{{ 'Deactivate' if r.active else 'Activate' }}</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="13" class="empty-state">No working rules yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
 </section>
 
+<section class="panel" id="overrides">
+  <div class="panel-heading"><div><h2>Date-specific staffing</h2>
+    <p>Override the minimum staff for a single date – sale days, launches, or a one-off closure (0).</p></div></div>
+  <form method="POST" action="{{ url_for('working_rules.add_override') }}" class="form-grid">
+    <div class="form-group"><label>Brand</label><select name="brand_id" required>{% for b in brands %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Process</label><select name="process_id" required>{% for p in processes %}<option value="{{ p.id }}">{{ p.code }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Date</label><input type="date" name="override_date" required></div>
+    <div class="form-group"><label>Minimum staff</label><input type="number" name="minimum_staff" min="0" max="20" value="2" required></div>
+    <div class="form-group"><label>Reason</label><input name="reason" placeholder="Black Friday sale"></div>
+    <div class="form-group form-action"><button class="btn-primary" type="submit">Add override</button></div>
+  </form>
+  <div class="table-wrapper">
+  <table class="data-table compact">
+    <thead><tr><th>Date</th><th>Brand / Process</th><th>Min staff</th><th>Reason</th><th></th></tr></thead>
+    <tbody>
+    {% for o in overrides %}
+      <tr><td>{{ o.override_date.strftime('%a %d %b %Y') }}</td><td>{{ o.brand.name }} / {{ o.process.code }}</td>
+        <td>{{ o.minimum_staff if o.minimum_staff else 'Closed' }}</td><td>{{ o.reason or '' }}</td>
+        <td><form method="POST" action="{{ url_for('working_rules.delete_override', override_id=o.id) }}"><button class="text-button danger-text">Delete</button></form></td></tr>
+    {% else %}<tr><td colspan="5" class="empty-state">No overrides.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
 {% endblock %}

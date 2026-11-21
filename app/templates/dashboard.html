@@ -1,17 +1,91 @@
 {% extends "base.html" %}
 {% block title %}Overview | RosterFlow{% endblock %}
+{% block crumb %}Overview{% endblock %}
 {% block content %}
-<section class="page-heading"><div><p class="eyebrow">OVERVIEW</p><h1>Operations dashboard</h1><p class="muted">Monitor workforce allocation and monthly roster health.</p></div><button class="button button-primary" disabled title="Available after roster module is implemented">Generate roster</button></section>
-<section class="stats-grid">
-  <article class="stat-card"><span class="stat-label">Total employees</span><strong>—</strong><small>Target dataset: 30+</small></article>
-  <article class="stat-card"><span class="stat-label">Active brands</span><strong>—</strong><small>Configured brands</small></article>
-  <article class="stat-card"><span class="stat-label">Operational pods</span><strong>—</strong><small>Teams and pod leads</small></article>
-  <article class="stat-card"><span class="stat-label">Coverage conflicts</span><strong>—</strong><small>Calculated during validation</small></article>
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">OVERVIEW</p>
+    <h1>Operations dashboard</h1>
+    <p class="muted">Plan, generate, validate and manage monthly rosters across brands, processes and pods.</p>
+  </div>
+  <div class="heading-actions">
+    <a class="btn-primary" href="{{ url_for('rosters.index') }}">Generate roster</a>
+    <a class="btn-secondary" href="{{ url_for('rosters.impact') }}">What-if: absence</a>
+  </div>
 </section>
+
+<section class="stats-grid four">
+  <article class="stat-card"><span>Active employees</span><h2>{{ stats.employees }}</h2><small>across {{ stats.pods }} pods</small></article>
+  <article class="stat-card"><span>Active brands</span><h2>{{ stats.brands }}</h2><small>{{ stats.single }} single-resource ({{ stats.single_pct }}%) · {{ stats.multi }} shared</small></article>
+  <article class="stat-card"><span>Processes</span><h2>{{ stats.processes }}</h2><small>CS, ACC, NDR, Retention…</small></article>
+  <article class="stat-card"><span>Pending leave requests</span><h2>{{ stats.pending_leave }}</h2><small><a href="{{ url_for('availability.index') }}">Review &amp; check impact →</a></small></article>
+</section>
+
 <section class="content-grid">
-  <article class="panel"><div class="panel-heading"><div><h2>Build status</h2><p class="muted">Implementation milestones</p></div><span class="status-pill">Phase 1</span></div>
-    <ol class="milestones"><li class="done">Project scaffold and configuration</li><li>Database schema and models</li><li>Employee, brand and process management</li><li>Availability and working rules</li><li>Roster generation and validation</li><li>Deployment and demo</li></ol>
+  <article class="panel">
+    <div class="panel-heading"><div><h2>Today's coverage</h2>
+      <p class="muted">{% if current %}{{ current.label }} ({{ current.status|lower }}){% else %}No roster for this month yet{% endif %}</p></div>
+      {% if current %}<a class="btn-secondary" href="{{ url_for('rosters.detail', version_id=current.id, view='day', date=today.isoformat()) }}">Day view</a>{% endif %}
+    </div>
+    {% if today_info %}
+      {% set gaps = today_info.scopes|rejectattr('ok')|list %}
+      <p><strong>{{ today_info.working|length }}</strong> working · <strong>{{ today_info.off|length }}</strong> off ·
+        <strong class="{{ 'text-danger' if gaps else 'text-ok' }}">{{ gaps|length }}</strong> scope(s) under-staffed of {{ today_info.scopes|length }} operating</p>
+      {% if gaps %}
+      <ul class="plain-list">
+        {% for s in gaps %}<li><span class="dot dot-red"></span>{{ s.brand.name }} / {{ s.process.code }} — {{ s.staff|length }}/{{ s.need }}</li>{% endfor %}
+      </ul>
+      {% else %}<div class="callout ok">Every operating brand/process is covered today.</div>{% endif %}
+    {% else %}
+      <p class="muted">Generate this month's roster to see live coverage.</p>
+    {% endif %}
   </article>
-  <article class="panel"><h2>Core operating principle</h2><p class="muted">A roster is valid only when every required brand/process has enough qualified employees available, without double-booking anyone.</p><div class="callout">Coverage accuracy comes before visual polish.</div></article>
+
+  <article class="panel">
+    <div class="panel-heading"><div><h2>Roster versions</h2><p class="muted">Latest drafts and published rosters</p></div></div>
+    {% if versions %}
+    <table class="data-table compact">
+      <thead><tr><th>Roster</th><th>Status</th><th>Errors</th><th>Warnings</th></tr></thead>
+      <tbody>
+      {% for v in versions %}
+        <tr>
+          <td><a href="{{ url_for('rosters.detail', version_id=v.id) }}">{{ v.label }}</a></td>
+          <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
+          <td>{{ counts[v.id].errors }}{% if counts[v.id].errors and not counts[v.id].open_errors %} <small>(ack.)</small>{% endif %}</td>
+          <td>{{ counts[v.id].warnings }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted">No rosters yet.</p>{% endif %}
+  </article>
+
+  <article class="panel">
+    <h2>Pending requests</h2>
+    {% if pending %}
+      <ul class="plain-list">
+      {% for r in pending %}
+        <li>{{ r.employee.full_name }} · {{ r.availability_type.replace('_',' ').title() }} · {{ r.start_date.strftime('%d %b') }}{% if r.end_date != r.start_date %}–{{ r.end_date.strftime('%d %b') }}{% endif %}
+          <a href="{{ url_for('rosters.impact', availability_id=r.id) }}">impact →</a></li>
+      {% endfor %}
+      </ul>
+    {% else %}<p class="muted">Nothing waiting for approval.</p>{% endif %}
+  </article>
+
+  <article class="panel">
+    <h2>How scheduling works</h2>
+    <ol class="milestones">
+      <li>Brand/process calendars define <strong>demand</strong> (minimum staff per day, holidays, sale days).</li>
+      <li>Approved leave, comp-offs and fixed offs are <strong>hard constraints</strong>.</li>
+      <li>Weekly offs are placed where they don't break coverage; <strong>preferences yield to client coverage</strong>.</li>
+      <li>Remaining gaps are filled by designated <strong>backups</strong>, or flagged with ranked cover suggestions.</li>
+      <li>Every edit is <strong>re-validated</strong>; errors block publishing unless acknowledged.</li>
+    </ol>
+    {% if config.ALLOW_DEMO_RESET %}
+    <form method="POST" action="{{ url_for('dashboard.reset_demo') }}" onsubmit="return confirm('Reset ALL data to the demo dataset?');" class="reset-form">
+      <button class="text-button danger-text" type="submit">Reset demo data</button>
+    </form>
+    {% endif %}
+  </article>
 </section>
 {% endblock %}

@@ -3,29 +3,41 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}RosterFlow{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/roster.css') }}">
 </head>
 <body>
+  {% set nav = [
+    ('dashboard.', url_for('dashboard.index'), 'Overview'),
+    ('rosters.', url_for('rosters.index'), 'Rosters'),
+    ('rosters.impact', url_for('rosters.impact'), 'Change impact'),
+    ('employees.', url_for('employees.index'), 'Employees'),
+    ('pods.', url_for('pods.index'), 'Pods & Assignments'),
+    ('catalog.', url_for('catalog.index'), 'Brands & Processes'),
+    ('working_rules.', url_for('working_rules.index'), 'Working Rules'),
+    ('availability.', url_for('availability.index'), 'Leave & Availability'),
+    ('weekly_offs.', url_for('weekly_offs.index'), 'Weekly Offs'),
+    ('holidays.', url_for('holidays.index'), 'Public Holidays'),
+  ] %}
   <aside class="sidebar">
-    <div class="brand-mark">RF <span>RosterFlow</span></div>
+    <a class="brand-mark" href="{{ url_for('dashboard.index') }}">RF <span>RosterFlow</span></a>
+    <button class="nav-toggle" type="button" aria-label="Toggle menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
     <nav>
-      <a class="active" href="/">Overview</a>
-      <a href="{{ url_for('employees.index') }}">Employees</a>
-      <a href="{{ url_for('catalog.index') }}">Brands & Processes</a>
-      <a href="{{ url_for('pods.index') }}">Pods</a>
-      <a href="{{ url_for('working_rules.index') }}">Working Rules</a>
-      <a href="{{ url_for('availability.index') }}">Availability</a>
-      <a href="{{ url_for('weekly_offs.index') }}">Weekly Offs</a>
-      <a href="{{ url_for('holidays.index') }}">Public Holidays</a>
-      <a href="{{ url_for('rosters.index') }}">Roster Management</a>
-      <a href="#conflicts">Conflicts</a>
-      <a href="#reports">Reports</a>
+      {% for prefix, href, label in nav %}
+        {% set is_active = (endpoint == prefix) if not prefix.endswith('.') else (endpoint.startswith(prefix) and endpoint != 'rosters.impact') %}
+        <a class="{{ 'active' if is_active }}" href="{{ href }}">{{ label }}</a>
+      {% endfor %}
     </nav>
-    <div class="sidebar-foot">Workforce operations</div>
+    <div class="sidebar-foot">Smart roster management<br>for multi-brand CX teams</div>
   </aside>
   <main class="main-content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
+    <header class="topbar">
+      <div><p class="eyebrow">WORKFORCE OPERATIONS</p><strong>{% block crumb %}Roster management{% endblock %}</strong></div>
+      <div class="topbar-right"><span class="muted">{{ today.strftime('%a %d %b %Y') }}</span><div class="avatar">OM</div></div>
+    </header>
+    {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="flash-container">
           {% for category, message in messages %}
@@ -34,9 +46,9 @@
         </div>
       {% endif %}
     {% endwith %}
-    <header class="topbar"><div><p class="eyebrow">WORKFORCE OPERATIONS</p><strong>Roster management</strong></div><div class="avatar">AD</div></header>
     {% block content %}{% endblock %}
   </main>
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>
