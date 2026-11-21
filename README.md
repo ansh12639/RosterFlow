@@ -4,7 +4,7 @@ A web app that helps an operations manager create and manage monthly work roster
 many brands. It decides who works on which day, checks that every brand has enough staff, and clearly flags
 any problem before the roster is published.
 
-**Live app:** `<add your deployed URL here>`
+**Live app:** https://ansh.pythonanywhere.com
 **Demo video:** `<add your video link here>`
 
 **Built with:** Python, Flask, MySQL, HTML, CSS, JavaScript
