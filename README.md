@@ -8,9 +8,9 @@ Built for the DataStraw *Smart Roster Management System* assessment with **Pytho
 
 | | |
 |---|---|
-| **Live demo** | `<add your deployed URL here>` – see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
-| **Demo video** | `<add your video link here>` – script in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) |
-| **Approach note** | [docs/APPROACH.md](docs/APPROACH.md) |
+| **Live demo** | `<add your deployed URL here>` |
+| **Demo video** | `<add your video link here>` |
+| **Approach note** | [below](#approach-note) |
 | **Tests** | `pytest` – 27 tests (scheduling core + end-to-end flows) |
 
 > The problem is treated as a **scheduling problem, not a calendar**: brand calendars create *demand*, people create
@@ -254,9 +254,19 @@ reduce manual work for the operations manager.
 
 ## 7. Deployment
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for step-by-step guides (PythonAnywhere with its bundled MySQL, or
-Render + a hosted MySQL). In short: set `DATABASE_URL`, `SECRET_KEY`, `AUTO_SEED=1`, and start with
-`gunicorn --preload run:app` (Procfile included). The first boot creates the tables and loads the demo data.
+Needs Python 3.11+ and a MySQL 8 / MariaDB database. Environment variables: `DATABASE_URL`
+(`mysql+pymysql://USER:PASSWORD@HOST:3306/DB?charset=utf8mb4`), `SECRET_KEY`, `AUTO_SEED=1` (create tables and
+load demo data on first start), optional `MYSQL_SSL_CA` for hosted MySQL that requires TLS and `ANTHROPIC_API_KEY`.
+
+**PythonAnywhere (free, MySQL included):** create a MySQL database in the *Databases* tab; in a Bash console run
+`git clone https://github.com/ansh12639/RosterFlow.git`, `cd RosterFlow`,
+`mkvirtualenv --python=/usr/bin/python3.11 rosterflow`, `pip install -r requirements.txt`, copy `.env.example`
+to `.env` and set `DATABASE_URL`/`SECRET_KEY`, then `flask seed-demo`. In the *Web* tab add a manual Python 3.11
+app, set the virtualenv, map `/static/` to `RosterFlow/app/static`, and make the WSGI file load `.env` and
+`from run import app as application`. Reload.
+
+**Render / Railway / any host:** `render.yaml` and a `Procfile` are included; the start command is
+`gunicorn --preload --workers 2 --bind 0.0.0.0:$PORT run:app` (`--preload` makes the one-time auto-seed run once).
 
 ## 8. Security notes
 
@@ -264,3 +274,29 @@ CSRF protection on every form (Flask-WTF), secrets only via environment variable
 server-side validation on every input, parameterised queries via SQLAlchemy. The public demo has no login by design
 (as the brief asks for a tool reviewers can test immediately) and offers a **Reset demo data** button; set
 `ALLOW_DEMO_RESET=0` in a real deployment and put it behind SSO.
+
+---
+
+## Approach note
+
+RosterFlow treats rostering as a constraint problem: every brand × process has its own operating calendar and
+minimum staffing (demand), and employees, assignments, leave and weekly-off rules provide supply. A deterministic
+engine places mandatory weekly offs where they hurt coverage least – client coverage always outranks preferred
+days – repairs remaining gaps by moving offs, and fills gaps with designated backups. An independent validator
+re-checks every generated or manually edited roster, explains each gap or rule violation with ranked one-click
+cover suggestions, and blocks publishing until errors are resolved or explicitly accepted. Changes such as newly
+approved leave are impact-analysed before they are applied, flow into a new draft revision (never the live
+roster), and the rest of the month can be re-optimised while keeping past days and manual edits.
+
+**Key decisions**
+
+* **Kept Flask + MySQL** (the existing stack) so effort went into the scheduling logic instead of a rewrite.
+* **Greedy + repair + backup covers instead of a black-box solver**: under a second for 34 people × 31 days,
+  explainable to an operations manager, and unit-tested; a CP-SAT model is the next step at larger scale.
+* **Validator separate from the generator**, so the same rules check generated rosters, manual edits, old rosters
+  after rule changes, and what-if scenarios – a gap can never be hidden.
+* **One `Assignment` table with primary/backup roles** expresses single-resource brands, separate processes,
+  shared processes and multi-brand employees without special cases.
+* **Versioned rosters** (draft → published → archived, with revisions and a change log): published rosters are
+  never edited in place.
+* **Humans approve, the system proposes**; AI only explains conflicts and never makes scheduling decisions.
